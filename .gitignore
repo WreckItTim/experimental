@@ -6,11 +6,12 @@ __pycache__/
 **/.vs/
 .dropbox**
 todo.txt
-airsim_private/
-airsim_shared/
+airsim/
 overseer/
 shortest_paths/
 supervised_learning/
 bank/
 data/**
 !data/README.txt
+models/**
+!models/README.txt
