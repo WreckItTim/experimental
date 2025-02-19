@@ -12,3 +12,5 @@ overseer/
 shortest_paths/
 supervised_learning/
 bank/
+data/**
+!data/README.txt
