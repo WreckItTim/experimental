@@ -4,6 +4,7 @@ __pycache__/
 **/__pycache__/
 .vs/
 **/.vs/
+_**
 **/_**
 .dropbox**
 todo.txt
@@ -25,4 +26,7 @@ data/voxels/
 models/*
 !models/README.txt
 !models/navigation_airsim_blocks_dqn_2d/
-utils/notebook_evals.ipynb
+utils/*
+!utils/methods.py
+!utils/notebook_eval.ipynb
+!utils/visualization.ipynb
