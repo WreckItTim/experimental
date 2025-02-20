@@ -13,5 +13,12 @@ supervised_learning/
 bank/
 data/**
 !data/README.txt
+!data/astar_paths/README.txt
+!data/astar_paths/32m/
+!data/observations/README.txt
+!data/rooftops/README.txt
+!data/rooftops/Blocks.p
+!data/rooftops/AirSimNH.p
+!models/navigation/airsim_blocks_dqn_2d/
 models/**
 !models/README.txt
