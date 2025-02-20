@@ -13,12 +13,15 @@ supervised_learning/
 bank/
 data/astar_paths/*
 !data/astar_paths/README.txt
+!data/astar_paths/v1/
 data/observations/*
 !data/observations/README.txt
 data/rooftops/*
 !data/rooftops/README.txt
+!data/rooftops/v1/
 data/grids/
 data/voxels/
 models/*
 !models/README.txt
+!models/navigation/airsim_blocks_dqn_2d/
 utils/notebook_evals.ipynb
