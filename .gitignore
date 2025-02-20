@@ -10,7 +10,7 @@ _**
 todo.txt
 airsim/
 overseer/
-shortest_paths/
+shortest_path/
 supervised_learning/
 bank/
 data/astar_paths/*
