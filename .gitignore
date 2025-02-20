@@ -23,5 +23,5 @@ data/grids/
 data/voxels/
 models/*
 !models/README.txt
-!models/navigation/airsim_blocks_dqn_2d/
+!models/navigation_airsim_blocks_dqn_2d/
 utils/notebook_evals.ipynb
