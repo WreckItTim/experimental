@@ -21,4 +21,5 @@ data/grids/
 data/voxels/
 models/*
 !models/README.txt
+!models/airsim_blocks_dqn_2d/
 utils/notebook_evals.ipynb
