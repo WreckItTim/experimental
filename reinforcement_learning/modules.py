@@ -54,7 +54,7 @@ def learning_v1(buffer_size, exploration_fraction, data_path, airsim_map, motion
 	from spawners.levels import Levels
 	Levels(
 		drone_component = 'Drone',
-		levels_path = f'{data_path}astar_paths/32m/{airsim_map}_{motion}_train.p', # paths to randomly sample from during training
+		levels_path = f'{data_path}astar_paths/v1/{airsim_map}_{motion}_train.p', # paths to randomly sample from during training
 		start_level = start_level,
 		max_level = max_level,
 		random_path = True,
@@ -99,13 +99,13 @@ def environment_v1(x_bounds, y_bounds, z_bounds, data_path, airsim_map):
 	# read rooftops data struct to determine z-height of nearest collidable object below or above x,y coords
 	from others.rooftops import Rooftops
 	Rooftops(
-		read_path = f'{data_path}rooftops/{airsim_map}.p',
+		read_path = f'{data_path}rooftops/v1/{airsim_map}.p',
 		name = 'Rooftops',
 	)
 
 	# create map object
-	from maps._etherial import _Etherial
-	_Etherial(
+	from maps.etherial import Etherial
+	Etherial(
 		rooftops_component='Rooftops',
 		x_bounds = x_bounds,
 		y_bounds = y_bounds,
@@ -115,8 +115,8 @@ def environment_v1(x_bounds, y_bounds, z_bounds, data_path, airsim_map):
 
 	# drone controller component - we will use AirSim
 		# this can also be real world drone controller like Tello
-	from drones._etherial import _Etherial
-	_Etherial(
+	from drones.etherial import Etherial
+	Etherial(
 		map_component = 'Map',
 		name = 'Drone',
 		)
@@ -165,8 +165,8 @@ def observations_v1(observations_path, forward_sensor, x_bounds, y_bounds, z_bou
 		id_name=id_name, x_vals=x_vals, y_vals=y_vals, z_vals=z_vals, yaw_vals=yaw_vals,
 		name = 'DataDictForward',
 	)
-	from sensors._client import _Client
-	_Client(
+	from sensors.cache import Cache
+	Cache(
 		datadict_component = 'DataDictForward',
 		drone_component = 'Drone',
 		sensor_name = forward_sensor,

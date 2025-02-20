@@ -3,7 +3,7 @@ from component import _init_wrapper
 
 # no map is rendered 
 	# looks up object positions and roofs for collisions from dictionary object
-class _Etherial(Map):
+class Etherial(Map):
 	@_init_wrapper
 	def __init__(self,
 				 # tells the height of collidable objects

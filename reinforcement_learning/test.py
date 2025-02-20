@@ -11,12 +11,12 @@ config_path = sys.argv[1] # direct path to configuration.json file to load rl co
 model_path = sys.argv[2] # direct path to model.zip file to read with neural network
 working_directory = _utils.fix_directory(sys.argv[3]) # directory path to write test results
 
-assert(os.path.exists(config_path), f'configuration path DNE at {config_path}')
-assert(os.path.exists(model_path), f'model path DNE at {model_path}')
+assert os.path.exists(config_path), f'configuration path DNE at {config_path}'
+assert os.path.exists(model_path), f'model path DNE at {model_path}'
 
 # global params for you to set
 device = 'cuda:0' # device to load pytorch model on
-data_path = '/home/tim/Dropbox/airsim_shared/' # CHANGE to your path -- parent directory for all reading
+data_path = '/home/tim/Dropbox/data/' # CHANGE to your path -- parent directory for all reading
 start_level, max_level = 0, 5 # start_level, max_level to test on
 num_evals_per_sublevel = 10
 
@@ -42,9 +42,9 @@ configuration.update_meta(meta)
 # parameters set from config file
 airsim_map = configuration.parameters['airsim_map']
 motion = configuration.parameters['motion']
-rooftops_path = f'{data_path}rooftops/{airsim_map}.p' # match to map or use voxels i
+rooftops_path = f'{data_path}rooftops/v1/{airsim_map}.p' # match to map or use voxels i
 x_bounds, y_bounds, z_bounds = modules.bounds_v1(airsim_map, motion) # bounds that drone can move around map in
-astar_paths_file = f'{data_path}astar_paths/32m/{airsim_map}_{motion}_test.p'
+astar_paths_file = f'{data_path}astar_paths/v1/{airsim_map}_{motion}_test.p'
 astar_paths = _utils.pk_read(astar_paths_file)
 num_sublevels = np.sum([len(astar_paths['levels'][level]) for level in range(start_level, max_level+1)])
 num_episodes = int(num_evals_per_sublevel * num_sublevels)

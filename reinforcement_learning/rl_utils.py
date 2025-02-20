@@ -242,7 +242,7 @@ def yaw_to_idx(yaw):
 	# 	yaw_idx = 0
 	return yaw_idx
 
-def db_setup(seed_mult=1, levels_in=0):
+def db_setup(seed_mult=1_000, levels_in=0):
 	OS = platform.system()
 	if levels_in > 0:
 		cwd_path = os.getcwd()

@@ -79,7 +79,7 @@ class Data(Controller):
 		self.add_data_point(x, y, z, yaw, yaw_idx, x_drone, y_drone, z_drone, yaw_drone, p_idx, data)
 
 		# checkpoint
-		if p_idx > 0 and p_idx % self.checkpoint_frequency == 0:
+		if p_idx % self.checkpoint_frequency == 0:
 			self.checkpoint(p_idx)
 
 

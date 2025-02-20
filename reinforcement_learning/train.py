@@ -7,8 +7,8 @@ import modules
 airsim_map = 'Blocks' # name of AirSim release to load
 motion = '2d' # 2d for horizontal motion only, 3d to unlock vertical motion
 x_bounds, y_bounds, z_bounds = modules.bounds_v1(airsim_map, motion) # bounds that drone can move around map in
-data_path = '/home/tim/Dropbox/airsim_shared/' # CHANGE to your path -- parent directory to read all data from
-working_directory = f'{data_path}models/navigation/blocks_dqn_2d/' # CHANGE to your path -- where to write trained model and config files to
+data_path = '/home/tim/Dropbox/data/' # CHANGE to your path -- parent directory to read all data from
+working_directory = f'{data_path}models/navigation_airsim_blocks_dqn_2d/' # CHANGE to your path -- where to write trained model and config files to
 evaluate_at_end = True # set to true will auto evaluate on test paths after training and save to f'{working_directory}test/'
 
 # setup for run, set system vars and prepare file system

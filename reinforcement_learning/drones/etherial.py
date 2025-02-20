@@ -8,7 +8,7 @@ import rl_utils as _utils
 	# (1) position 
 	# (2) collisions
 # no actual drone, simualted or real, is flown though
-class _Etherial(Drone):
+class Etherial(Drone):
 	@_init_wrapper
 	def __init__(self,
 			  map_component, # used to check for collisions

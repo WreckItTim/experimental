@@ -158,7 +158,7 @@ class AirSimMap(Map):
 			_utils.speak('incompatible OS.')
 				
 		# wait for map to load
-		time.sleep(30)
+		time.sleep(60)
 
 		# establish communication link with airsim client
 		if self.vehicle in ['multirotor']:

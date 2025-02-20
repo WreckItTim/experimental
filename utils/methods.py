@@ -154,7 +154,7 @@ def load_rooftops(rt_path):
     
 def plot_map(fig, ax, data_dir, airsim_map, show_z=False, 
              resolution=None, x_anchor=None, y_anchor=None, ):
-    rooftops_path = f'{data_dir}rooftops/{airsim_map}.p'
+    rooftops_path = f'{data_dir}rooftops/v1/{airsim_map}.p'
     rooftops_dict, rooftops_arr = load_rooftops(rooftops_path)
     interval = 40
     x_min = list(rooftops_dict.keys())[0]

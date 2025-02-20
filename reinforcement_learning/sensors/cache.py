@@ -11,7 +11,7 @@ import time
 
 # gets position from a miscellaneous component
 # can send in a second component to get positoin and distance between two
-class _Client(Sensor):
+class Cache(Sensor):
 	
 	@_init_wrapper
 	def __init__(self,
