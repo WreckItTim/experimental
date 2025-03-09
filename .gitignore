@@ -13,6 +13,7 @@ overseer/
 shortest_path/
 supervised_learning/*
 supervised_learning/depth_2d_extraction/*
+!supervised_learning/depth_2d_extraction/monocular_depth.ipynb
 bank/
 data/astar_paths/*
 !data/astar_paths/README.txt
