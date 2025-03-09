@@ -7,3 +7,5 @@ https://www.dropbox.com/scl/fo/1b8k2izu23ccu2rf9hmi6/AJAHb-CCQual8IeuoFpqjnA?rlk
 see the analytics/visualize_data.ipynb notebook for an example of how to fetch and visualize data from a given map, sensor, and coordinates and/or navigation path
 
 see the supervised_learning/depth_2d_extraction/monocular_depth.ipynb notebook of how to fetch training/testing data to train a CNN model for monocular depth extraction
+
+The monocular_depth notebook uses the data SceneV1 and DepthV1. For weather, you will need SceneV3, SceneV4, and SceneV5. You can see the bottom of the readme.txt file in the data/observations folder for all of the different data available in the catalogue.
