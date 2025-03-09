@@ -85,14 +85,12 @@ sensor_names:
     DepthV1 >>>> default resolution forward facing ground truth depth 1x144x256
     DepthV2 >>>> reduced resolution forward facing ground truth depth 1x36x64
     SceneV1 >>>> default resolution forward facing RGB scene camera 3x144x256
+    SceneV3 >>>> RAIN default resolution forward facing RGB scene camera 3x144x256
+    SceneV4 >>>> SNOW default resolution forward facing RGB scene camera 3x144x256
+    SceneV5 >>>> FOG default resolution forward facing RGB scene camera 3x144x256
     SegmentationV1 >>>> default resolution forward facing object segmentation 3x144x256
     BoxesV1 >>>> dictionary from SegmentationV1
     MasksV1 >>>> dictionary from SegmentationV1
-    b2fV1 >>>> predicted DepthV2 maps at steps [2, 4, 8, 16, 32] meters ahead using Mengtings algo
-    b2fV2 >>>> b2fV1 with gap filling algorithm setting all null pixels to nearest valid pixels
-    TODO: DepthV3 >>>> reduced resolution downward facing ground truth depth 1x36x64
-    TODO: DepthV4 >>>> default resolution downward facing ground truth depth 1x144x256
-    TODO: SceneV2 >>>> default resolution downward facing RGB scene camera 3x144x256
 
 
 airsim_maps:
@@ -102,11 +100,3 @@ airsim_maps:
     TODO: AirSimNH_v2 - AirSimNH with cars moving in circles at static speeds around the roads
     TODO: Frogger - empty map with rows of cars moving at variable speeds
     TODO: City - large map with realistic objects simulating a city, includes realistic live traffic and moving pedestrians
-
-
-part_id_names:
-
-    aaa - first batch of results
-
-
-
