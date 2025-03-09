@@ -1,7 +1,7 @@
 from environments.environment import Environment
 from component import _init_wrapper
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 import os
 
 # an environment is the heart of RL algorithms
@@ -82,12 +82,12 @@ class GoalEnv(Environment):
 	def save(self, state):
 		write_folder = state['write_folder']
 		if not self._track_save:
-			_utils.warning('called GoalEnv.save() without setting _track_save=True, nothing to save')
+			md.warning('called GoalEnv.save() without setting _track_save=True, nothing to save')
 			return
 		part_name = 'part_' + str(self.save_counter)
 		if 'states' in self._track_vars and len(self._all_states) > 0:
 			path = write_folder + 'states__' + part_name + '.json'
-			_utils.write_json(self._all_states, path)
+			md.write_json(self._all_states, path)
 			self._all_states = {}
 		if 'observations' in self._track_vars and len(self._observations) > 0:
 			path = write_folder + 'observations__' + part_name + '.npz'
@@ -145,9 +145,9 @@ class GoalEnv(Environment):
 			observation_data, total_reward, done, truncated, this_step = self._step(rl_output, state, return_state=False)
 			return_state = self._states[this_step].copy()
 		except self._exception as e:
-			_utils.speak(f'*** crashed ** step {self._nSteps}')
+			md.speak(f'*** crashed ** step {self._nSteps}')
 			self.handle_crash()
-			_utils.speak('*** recovered **')
+			md.speak('*** recovered **')
 			# this is a hot fix, until SB3 has a way to remove erroneous steps
 			# however in the grand scheme this one step on the replay buffer shouldnt have such a drastic affect
 			done = True # finish this episode
@@ -217,9 +217,9 @@ class GoalEnv(Environment):
 				observation_data, this_step = self._reset(state, seed, increment=False, return_state=False)
 				try_again = False
 			except self._exception as e:
-				_utils.speak('*** crashed ** reset')
+				md.speak('*** crashed ** reset')
 				self.handle_crash()
-				_utils.speak('*** recovered **')
+				md.speak('*** recovered **')
 
 		### return observation_data
 		return observation_data, self._states[this_step].copy()
@@ -248,6 +248,6 @@ class GoalEnv(Environment):
 				self._end(state)
 				try_again = False
 			except self._exception as e:
-				_utils.speak('*** crashed ** end')
+				md.speak('*** crashed ** end')
 				self.handle_crash()
-				_utils.speak('*** recovered **')
+				md.speak('*** recovered **')

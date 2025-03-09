@@ -1,4 +1,4 @@
-import rl_utils as _utils
+import global_methods as md
 from configuration import Configuration
 import math
 import sys
@@ -6,10 +6,16 @@ import os
 import numpy as np
 import modules
 
+home_dir = '/home/tim/Dropbox/' # home directory of repo
+models_dir = f'{home_dir}models/'
+
 # params set from arguments passed in python call
-config_path = sys.argv[1] # direct path to configuration.json file to load rl components
-model_path = sys.argv[2] # direct path to model.zip file to read with neural network
-working_directory = _utils.fix_directory(sys.argv[3]) # directory path to write test results
+rel_config_path = sys.argv[1] # relative path to configuration.json file to load rl components
+rel_model_path = sys.argv[2] # relative path to model.zip file to read with neural network
+rel_working_directory = md.fix_directory(sys.argv[3]) # relative path to write test results
+config_path = f'{models_dir}{rel_config_path}'
+model_path = f'{models_dir}{rel_model_path}'
+working_directory = f'{models_dir}{rel_working_directory}'
 
 assert os.path.exists(config_path), f'configuration path DNE at {config_path}'
 assert os.path.exists(model_path), f'model path DNE at {model_path}'
@@ -18,10 +24,10 @@ assert os.path.exists(model_path), f'model path DNE at {model_path}'
 device = 'cuda:0' # device to load pytorch model on
 data_path = '/home/tim/Dropbox/data/' # CHANGE to your path -- parent directory for all reading
 start_level, max_level = 0, 5 # start_level, max_level to test on
-num_evals_per_sublevel = 10
+num_evals_per_sublevel = 100
 
 # setup for run, set system vars and prepare file system
-_utils.setup(working_directory)
+md.setup(working_directory)
 
 ## read old CONFIGURATION 
 # SET META DATA (anything you want here for notes, just writes to config file as a dict)
@@ -45,7 +51,7 @@ motion = configuration.parameters['motion']
 rooftops_path = f'{data_path}rooftops/v1/{airsim_map}.p' # match to map or use voxels i
 x_bounds, y_bounds, z_bounds = modules.bounds_v1(airsim_map, motion) # bounds that drone can move around map in
 astar_paths_file = f'{data_path}astar_paths/v1/{airsim_map}_{motion}_test.p'
-astar_paths = _utils.pk_read(astar_paths_file)
+astar_paths = md.pk_read(astar_paths_file)
 num_sublevels = np.sum([len(astar_paths['levels'][level]) for level in range(start_level, max_level+1)])
 num_episodes = int(num_evals_per_sublevel * num_sublevels)
 
@@ -100,5 +106,5 @@ configuration.save()
 configuration.controller.run()
 
 # done
-_utils.speak('Evaluations done!')
+md.speak('Evaluations done!')
 configuration.disconnect_all()

@@ -1,6 +1,6 @@
 from controllers.controller import Controller
 from component import _init_wrapper
-import rl_utils as _utils
+import global_methods as md
 import numpy as np
 import torch
 
@@ -58,16 +58,16 @@ class Test(Controller):
 		for episode_idx, episode in enumerate(range(self.num_episodes)):
 			# step through next episode
 			success, termination_reason, q, length = self.evaluate_episode()
-			#_utils.speak(f'episode:{episode} goal:{success} q:{q} termination:{termination_reason}')
+			#md.speak(f'episode:{episode} goal:{success} q:{q} termination:{termination_reason}')
 			successes.append(success)
 			lengths.append(length)
 			termination_reasons.append(termination_reason)
 			qs.append(q)
 			if episode_idx % self.ckpt_freq == 0:
 				perc_done = 100*episode_idx/self.num_episodes
-				_utils.speak(f'evaluation percent done: {perc_done:.2f}%')
+				md.speak(f'evaluation percent done: {perc_done:.2f}%')
 				if self.job_name is not None: 
-					_utils.progress(self.job_name, f'{perc_done:.2f}%')
+					md.progress(self.job_name, f'{perc_done:.2f}%')
 		results_dic = {
 			'successes':successes,
 			'lengths':lengths,
@@ -75,6 +75,6 @@ class Test(Controller):
 			'qs':qs,
 		}
 		results_path = self.results_directory + 'evaluation.json'
-		_utils.write_json(results_dic, results_path)
+		md.write_json(results_dic, results_path)
 		return results_dic
 

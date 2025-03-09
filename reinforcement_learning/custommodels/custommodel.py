@@ -1,6 +1,6 @@
 # abstract class used to handle RL model
 from component import Component
-import rl_utils as _utils
+import global_methods as md
 import os
 import numpy as np
 import torch
@@ -16,12 +16,12 @@ class CustomModel(Component):
 	def __init__(self, actor_critic=True):
 		self.actor_critic = actor_critic
 		if self.actor_critic:
-			self.write_dir = _utils.fix_directory(self.write_dir)
+			self.write_dir = md.fix_directory(self.write_dir)
 
 	def connect(self, state=None):
 		super().connect(state)
 		if self.actor_critic:
-			absolute_path = _utils.get_global_parameter('absolute_path')
+			absolute_path = md.get_global_parameter('absolute_path')
 			
 			if type(self.actor) is str:
 				self._actor = torch.load(absolute_path + self.actor)
@@ -48,7 +48,7 @@ class CustomModel(Component):
 			if self.critics is not None:
 				self._nCritics = len(self._critics)
 				if len(self._critics_target) != self._nCritics:
-					_utils.error('number of critics neq numner of target critics')
+					md.error('number of critics neq numner of target critics')
 			# save init models
 			self.actor = self.write_dir + 'actor.pt'
 			self.actor_target = self.write_dir + 'actor_target.pt'
@@ -159,14 +159,14 @@ class CustomModel(Component):
 	# save torch models and replay_buffer to path
 		# pass in write_folder to state
 	def save(self, state):
-		folder = _utils.fix_directory(state['write_folder'])
+		folder = md.fix_directory(state['write_folder'])
 		if 'model' in self._track_vars:
 			self.save_models(folder)
 		if 'replay_buffer' in self._track_vars:
 			self.save_replay_buffer(folder)
 	# save torch models to path
 	def save_models(self, folder):
-		folder = _utils.fix_directory(folder)
+		folder = md.fix_directory(folder)
 		if not os.path.exists(folder):
 			os.makedirs(folder)
 		if self._actor is not None:

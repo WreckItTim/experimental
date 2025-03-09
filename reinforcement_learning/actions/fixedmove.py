@@ -2,7 +2,7 @@
 from actions.action import Action
 from component import _init_wrapper
 import math
-import rl_utils as _utils
+import global_methods as md
 import numpy as np
 
 # translates forward at given distance

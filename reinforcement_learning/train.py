@@ -1,4 +1,4 @@
-import rl_utils as _utils
+import global_methods as md
 from configuration import Configuration
 import os
 import modules
@@ -13,7 +13,7 @@ evaluate_at_end = True # set to true will auto evaluate on test paths after trai
 
 # setup for run, set system vars and prepare file system
 overwrite_model = True # this will overwrite previous working_directory and start new model from scratch
-_utils.setup(working_directory, overwrite_model)
+md.setup(working_directory, overwrite_model)
 
 # paramount training hyper parameters
 continue_training = False # True will load saved json configuration and any previous model and replay buffer saved to file
@@ -131,13 +131,13 @@ configuration.controller.run()
 
 # clean up shop
 configuration.disconnect_all()
-_utils.speak('training complete!')
+md.speak('training complete!')
 
 #  evaluate on trained model
 if evaluate_at_end:
-	_utils.evaluate2(
+	md.evaulate(
 		f'{working_directory}configuration.json',
 		f'{working_directory}modeling/model_final.zip',
 		f'{working_directory}test_final/',
 	)
-	_utils.speak('testing complete!')
+	md.speak('testing complete!')

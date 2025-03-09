@@ -1,6 +1,6 @@
 from spawners.spawner import Spawner
 from component import _init_wrapper
-import rl_utils as _utils
+import global_methods as md
 import numpy as np
 import math
 
@@ -114,7 +114,7 @@ class Random(Spawner):
 			# otherwise recheck (check for number of attempts and throw warning if exceeded)
 			attempt += 1
 			if attempt > 1000:
-				_utils.speak(f'could not find a valid goal at drone:{drone_position} and range:{self.goal_range} respawning...')
+				md.speak(f'could not find a valid goal at drone:{drone_position} and range:{self.goal_range} respawning...')
 				valid_point = False
 				break
 		if valid_point:

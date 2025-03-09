@@ -1,5 +1,5 @@
 from component import Component
-import rl_utils as _utils
+import global_methods as md
 
 
 class Spawner(Component):

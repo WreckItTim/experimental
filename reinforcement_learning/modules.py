@@ -1,4 +1,4 @@
-import rl_utils as _utils
+import global_methods as md
 from configuration import Configuration
 import math
 import os
@@ -33,7 +33,7 @@ def continue_training_v1(working_directory):
 	model_component = configuration.get_component('Model')
 	model_component.read_model_path = model_path
 	model_component.read_replay_buffer_path = buffer_path
-	_utils.speak('continuing training...')
+	md.speak('continuing training...')
 	return configuration
 
 def learning_v1(buffer_size, exploration_fraction, data_path, airsim_map, motion, start_level, max_level):
@@ -122,7 +122,7 @@ def environment_v1(x_bounds, y_bounds, z_bounds, data_path, airsim_map):
 		)
 
 def observations_v1(observations_path, forward_sensor, x_bounds, y_bounds, z_bounds, airsim_map, motion, nPast=4):
-	sensor_info = _utils.read_json(f'{observations_path}{forward_sensor}/info.json')
+	sensor_info = md.read_json(f'{observations_path}{forward_sensor}/info.json')
 	image_bands, image_height, image_width = sensor_info['array_size']
 	# set parameters for data to fetch
 	id_name = 'alpha' # when reading in observation data, which ID key words to use

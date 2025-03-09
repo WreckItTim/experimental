@@ -1,4 +1,4 @@
-import rl_utils as _utils
+import global_methods as md
 from sys import getsizeof
 
 # saves config of components
@@ -55,8 +55,8 @@ class Configuration():
 		if self.add_memories:
 			self.benchmark_memory()
 		if write_path is None:
-			write_path = _utils.get_local_parameter('working_directory') + 'benchmarks.json'
-		_utils.write_json(self.benchmarks, write_path)
+			write_path = md.get_global_parameter('working_directory') + 'benchmarks.json'
+		md.write_json(self.benchmarks, write_path)
 
 	# keeps track of components
 	def add_component(self, component):
@@ -69,7 +69,7 @@ class Configuration():
 	# keeps track of components
 	def get_component(self, component_name, is_type=None):
 		if component_name not in self.components:
-			_utils.speak(f'component named {component_name} does not exist')
+			md.speak(f'component named {component_name} does not exist')
 			return None
 		component = self.components[component_name]
 		if is_type is not None:
@@ -207,18 +207,18 @@ class Configuration():
 	def save(self, write_path=None):
 		configuration_file = self.serialize()
 		if write_path is None:
-			write_path = _utils.get_local_parameter('working_directory') + 'configuration.json'
-		_utils.write_json(configuration_file, write_path)
+			write_path = md.get_global_parameter('working_directory') + 'configuration.json'
+		md.write_json(configuration_file, write_path)
 
 #	@staticmethod
 #	def load(read_path, controller):
-#		configuration_file = _utils.read_json(read_path)
+#		configuration_file = md.read_json(read_path)
 #		configuration = Configuration.deserialize(configuration_file, controller)
 #		return configuration
 				
 	@staticmethod
 	def load(read_path, read_modifiers=True, skip_components=[], change_params={}):
-		configuration_file = _utils.read_json(read_path)
+		configuration_file = md.read_json(read_path)
 		configuration = Configuration.deserialize(configuration_file, read_modifiers, skip_components, change_params)
 		return configuration
 	

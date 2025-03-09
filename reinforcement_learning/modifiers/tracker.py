@@ -1,6 +1,6 @@
 from modifiers.modifier import Modifier
 from component import _init_wrapper
-import rl_utils as _utils
+import global_methods as md
 import os
 import nvidia_smi
 import psutil
@@ -43,7 +43,7 @@ class Tracker(Modifier):
 		super().connect(state)
 		self._devices = Device.all()
 		if self.write_folder is None:
-			self.write_folder = _utils.get_local_parameter('working_directory')
+			self.write_folder = md.get_global_parameter('working_directory')
 			self.write_folder += self._name + '/'
 		if not os.path.exists(self.write_folder):
 				os.makedirs(self.write_folder)
@@ -56,7 +56,7 @@ class Tracker(Modifier):
 
 	def activate(self, state=None):
 		if self.check_counter(state):
-			timestamp = _utils.get_timestamp()
+			timestamp = md.get_timestamp()
 			if 'gpu' in self.track_vars:
 				for i in range(self._nGPUs):
 					handle = nvidia_smi.nvmlDeviceGetHandleByIndex(i)
@@ -108,10 +108,10 @@ class Tracker(Modifier):
 
 				self._log['proc'][timestamp] = proc_info.copy()
 			write_path = self.write_folder + 'temp.json'
-			_utils.write_json(self._log, write_path)
+			md.write_json(self._log, write_path)
 			self.nActivations += 1
 			if self.nActivations % self.save_every == 0:
 				self.nParts += 1
 				write_path = self.write_folder + 'Part' + str(self.nParts) + '.json'
-				_utils.write_json(self._log, write_path)
+				md.write_json(self._log, write_path)
 				self.reset_log()

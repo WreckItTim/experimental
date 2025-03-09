@@ -1,6 +1,6 @@
 # abstract class used to handle RL model
 from component import Component
-import rl_utils as _utils
+import global_methods as md
 from os.path import exists
 import torch
 import numpy as np
@@ -50,7 +50,7 @@ class Slim(nn.Linear):
 		else:
 			bias = self.bias
 		y = F.linear(input, weight, bias)
-		#_utils.speak(f'RHO:{self.slim} IN:{weight.shape} OUT:{y.shape}')
+		#md.speak(f'RHO:{self.slim} IN:{weight.shape} OUT:{y.shape}')
 		return y
 
 # convert a neural network model to slimmable
@@ -120,31 +120,31 @@ class SB3Model(Component):
 			self._sb3model.learning_starts = self._model_arguments['learning_starts']
 			self._sb3model.train_freq = self._model_arguments['train_freq']
 			self._sb3model._convert_train_freq()
-			_utils.speak(f'loaded model from file {self.read_model_path}')
+			md.speak(f'loaded model from file {self.read_model_path}')
 		# create sb3 model from scratch
 		else:
 			self._sb3model = self.sb3Type(**self._model_arguments)
-			_utils.speak('created new model from scratch')
+			md.speak('created new model from scratch')
 		# convert all linear modules to slim ones
 		if self.convert_slim:
 			self._is_slim = True
 			self._sb3model.actor.mu = convert_to_slim(self._sb3model.actor.mu)
 			#self._sb3model.actor_target.mu = convert_to_slim(self._sb3model.actor_target.mu)
 			self._sb3model.slim = 1
-			_utils.speak('converted model to slimmable')
+			md.speak('converted model to slimmable')
 		# load weights?
 		if self.read_weights_path is not None:
 			self.load_weights(self.read_weights_path)
-			_utils.speak(f'read weights from path {self.read_weights_path}')
+			md.speak(f'read weights from path {self.read_weights_path}')
 		# use slim layers
 		if self.use_slim:
 			self._is_slim = True
 			self._sb3model.slim = 1
-			_utils.speak('using slimmable model')
+			md.speak('using slimmable model')
 		# read replay buffer from file
 		if self.read_replay_buffer_path is not None and exists(self.read_replay_buffer_path):
 			self.load_replay_buffer(self.read_replay_buffer_path)
-			_utils.speak(f'loaded replay buffer from file {self.read_replay_buffer_path}')
+			md.speak(f'loaded replay buffer from file {self.read_replay_buffer_path}')
 		
 			
 	# this will toggle if to checkpoint model and replay buffer
@@ -174,7 +174,7 @@ class SB3Model(Component):
 	# load sb3 model from path, must set sb3Load from child
 	def load_model(self, path, tensorboard_log=None):
 		if not exists(path):
-			_utils.error(f'invalid Model.load_model() path:{path}')
+			md.error(f'invalid Model.load_model() path:{path}')
 		else:
 			device=self._model_arguments['device']
 			self._sb3model = self.sb3Load(path, 
@@ -196,11 +196,11 @@ class SB3Model(Component):
 	def load_replay_buffer(self, path):
 		device=self._model_arguments['device']
 		if not exists(path):
-			_utils.error(f'invalid Model.load_replay_buffer() path:{path}')
+			md.error(f'invalid Model.load_replay_buffer() path:{path}')
 		elif self._has_replay_buffer:
 			self._sb3model.load_replay_buffer(path)
 		else:
-			_utils.warning(f'trying to load a replay buffer to a model that does not use one')
+			md.warning(f'trying to load a replay buffer to a model that does not use one')
 
 	# runs learning loop on model
 	def learn(self, 

@@ -3,7 +3,7 @@ from observers.observer import Observer
 from component import _init_wrapper
 from gymnasium import spaces
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 import copy
 
 class Single(Observer):

@@ -1,6 +1,6 @@
 
 from component import Component
-import rl_utils as _utils
+import global_methods as md
 
 # abstract class used to handle sensors
 class Sensor(Component):

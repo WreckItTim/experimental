@@ -1,7 +1,7 @@
 # abstract class used to handle RL model
 from custommodels.custommodel import CustomModel
 from component import _init_wrapper
-import rl_utils as _utils
+import global_methods as md
 import torch
 import pickle
 

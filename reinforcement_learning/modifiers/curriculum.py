@@ -1,6 +1,6 @@
 from modifiers.modifier import Modifier
 from component import _init_wrapper
-import rl_utils as _utils
+import global_methods as md
 import numpy as np
 
 # checks against percent of training episodes resulting in success
@@ -36,11 +36,11 @@ class Curriculum(Modifier):
 		super().connect()
 		if len(self.track_record) == 0:
 			self.reset_track()
-		self._project_name = _utils.get_local_parameter('project_name')
-		self._experiment_name = _utils.get_local_parameter('experiment_name')
-		self._trial_name = _utils.get_local_parameter('trial_name')
-		self._run_name = _utils.get_local_parameter('run_name')
-		self._job_name = _utils.get_local_parameter('job_name')
+		self._project_name = md.get_global_parameter('project_name')
+		self._experiment_name = md.get_global_parameter('experiment_name')
+		self._trial_name = md.get_global_parameter('trial_name')
+		self._run_name = md.get_global_parameter('run_name')
+		self._job_name = md.get_global_parameter('job_name')
 		self.progress()
 
 	# reset learning loop 
@@ -72,7 +72,7 @@ class Curriculum(Modifier):
 
 	def progress(self):
 		if self.update_progress:
-			_utils.progress(self._job_name, f'level {self.level} episodes {self.counter}')
+			md.progress(self._job_name, f'level {self.level} episodes {self.counter}')
 
 	## helper functions
 	def update_track(self, state):
@@ -93,25 +93,24 @@ class Curriculum(Modifier):
 		if self.eval_on_levelup and not self.reached_max:
 			model_name = f'model_level_{self.level}'
 			test_name = f'test_level_{self.level}'
-			working_directory = _utils.get_local_parameter('working_directory')
+			working_directory = md.get_global_parameter('working_directory')
 			model_write_path = f'{working_directory}modeling/{model_name}.zip'
 			self._model.save_model(model_write_path)
 			self._configuration.save()
-			_utils.evaluate2(
+			md.evaulate(
 				f'{working_directory}configuration.json',
 				f'{working_directory}modeling/{model_name}.zip',
 				f'{working_directory}{test_name}/',
 			)
-			#_utils.evaluate(f'test_level_{self.level}', self.start_level, self.level, self.eval_num_per_level, model_name)
 		if self.level < self.max_level:
 			self.level += 1
 			self._spawner.set_level(self.level)
 			self.reset_track()
-			_utils.speak(f'LEVELED UP!!! from {self.level-1} to {self.level}')
+			md.speak(f'LEVELED UP!!! from {self.level-1} to {self.level}')
 			return False
 		else:
 			if not self.reached_max:
-				_utils.speak(f'max level reached, {self.level}')
+				md.speak(f'max level reached, {self.level}')
 			self.reached_max = True
 			return True
 	def check_levelup(self, state):
@@ -119,5 +118,5 @@ class Curriculum(Modifier):
 		termination_reason = state['termination_reason']
 		if self.counter%1_000 == 0:
 			self.progress()
-			_utils.speak(f'job:{self._job_name} level:{self.level} episode:{self.counter} track:{percent_success} end:{termination_reason} ')
+			md.speak(f'job:{self._job_name} level:{self.level} episode:{self.counter} track:{percent_success} end:{termination_reason} ')
 		return percent_success >= self.level_up_criteria

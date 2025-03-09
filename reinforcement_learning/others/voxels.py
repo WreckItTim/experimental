@@ -2,7 +2,7 @@ from others.other import Other
 from component import _init_wrapper
 import random
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 import binvox as bv
 
 # voxels is used to handle 3d/2d map representation of objects
@@ -48,7 +48,7 @@ class Voxels(Other):
 		super().connect(state)
 		if self.make_new:
 			self._map.make_voxels(
-				absolute_path = _utils.get_local_parameter('absolute_path') + self.relative_path,
+				absolute_path = md.get_global_parameter('absolute_path') + self.relative_path,
 				center = self.center,
 				resolution = self.resolution,
 				x_length = self.x_length,
@@ -56,7 +56,7 @@ class Voxels(Other):
 				z_length = self.z_length,
 				)
 		self.read_voxels(
-				_utils.get_local_parameter('absolute_path') + self.relative_path
+				md.get_global_parameter('absolute_path') + self.relative_path
 				)
 		self.make_roofs()
 			

@@ -3,7 +3,7 @@ from component import _init_wrapper
 import random
 import numpy as np
 import math
-import rl_utils as _utils
+import global_methods as md
 import pickle
 import copy
 
@@ -37,7 +37,7 @@ class Levels(Spawner):
 
 	def connect(self):
 		super().connect()
-		self._levels = _utils.pk_read(self.levels_path)
+		self._levels = md.pk_read(self.levels_path)
 		self._paths = self._levels['paths']
 		self._nonlinearitys = self._levels['nonlinearitys']
 		self._linearitys = self._levels['linearitys']

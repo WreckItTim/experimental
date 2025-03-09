@@ -2,7 +2,7 @@
 from component import Component
 import gymnasium
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 
 # OpenAI Gym enviornment needed to run Stable_Baselines3
 class Environment(gymnasium.Env, Component):
@@ -56,7 +56,7 @@ class Environment(gymnasium.Env, Component):
 		# this is especially needed for AirSim which is particulary unstable 
 	def handle_crash(self):
 		self._map.connect(from_crash=True)
-		_utils.print_local_log()
+		#md.print_local_log()
 
 	# just makes the rl_output from SB3 more readible
 	def clean_rl_output(self, rl_output):

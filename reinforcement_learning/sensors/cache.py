@@ -4,7 +4,7 @@ from observations.image import Image
 from observations.array import Array
 from component import _init_wrapper
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 import os
 
 import time
@@ -19,8 +19,7 @@ class Cache(Sensor):
 				drone_component,
 				sensor_name,
 				map_name,
-				observations_path,
-				queries_path,
+				sensor_dir,
 				offline=False,
 				transformers_components=None,
 				use_dict=True,
@@ -30,11 +29,10 @@ class Cache(Sensor):
 				discretize=True,
 			  ):
 		super().__init__(offline, memory)
-		self._sensor_path = observations_path + sensor_name + '/'
-		if not os.path.exists(self._sensor_path):
-			_utils.speak(f'error: sensor named {self.sensor_name} DNE at observations path {self.observations_path}')
-		info_path = self._sensor_path + 'info.json'
-		info = _utils.read_json(info_path)
+		if not os.path.exists(self.sensor_dir):
+			md.speak(f'error: sensor named {self.sensor_name} DNE at observations path {self.observations_path}')
+		info_path = self.sensor_dir + 'info.json'
+		info = md.read_json(info_path)
 		self._obs_type = info['obs_type']
 		self._state_type = info['state_type']
 		self._vector_length = info['vector_length'] if 'vector_length' in info else 0
@@ -88,8 +86,8 @@ class Cache(Sensor):
 	
 	def send_query(self, state_name, state_type):
 		query_name = 'query__' + self.sensor_name + '__' + state_name + '__' + state_type
-		_utils.speak(query_name)
-		_utils.pk_write(1, self.queries_path+query_name+'.p')
+		md.speak(query_name)
+		md.pk_write(1, self.queries_path+query_name+'.p')
 
 	def step(self, state=None):
 		data = None
@@ -121,29 +119,13 @@ class Cache(Sensor):
 		# discretize
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw = _utils.yaw_to_idx(yaw)
+			yaw = md.yaw_to_idx(yaw)
 		if data is None:
-			#print('dict', x, y, z, yaw)
 			if self.use_dict:
 				data = self._datadict.get_data([x, y, z, yaw])
 		if data is None:
 			print('no data at', x, y, z, yaw)
 			ini = input()
-		#	state_name = '_'.join([str(part) for part in [x, y, z, yaw]])
-		# if data is None:
-		# 	#print('query', x, y, z, yaw)
-		# 	data_path = self._sensor_path + self.map_name + '/' + state_name + '.p'
-		# 	while(True):
-		# 		try:
-		# 			data = _utils.pk_read(data_path)
-		# 			#_utils.speak(data_path)
-		# 			break
-		# 		except Exception as e:
-		# 			#print('exception', e)
-		# 			self.send_query(state_name, '4vec')
-		# 			while not os.path.exists(data_path):
-		# 				time.sleep(0.01)
-		# 			time.sleep(0.04)
 		observation = self.create_obj(data)
 		transformed = self.transform(observation)
 		return transformed

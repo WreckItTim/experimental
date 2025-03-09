@@ -1,7 +1,7 @@
 from drones.drone import Drone
 from component import _init_wrapper
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 
 
 # drone launched is etherial in the sense that this only keeps track of:
@@ -45,8 +45,8 @@ class Etherial(Drone):
 			displacement = np.array([x, y, z]) - current_pos
 			distance = np.linalg.norm(displacement)
 			if distance % 1 != 0:
-				_utils.speak('NEGATIVE MOVEMENT')
-				_utils.progress('NEGATIVE MOVEMENT', 'uh oh')
+				md.speak('NEGATIVE MOVEMENT')
+				md.progress('NEGATIVE MOVEMENT', 'uh oh')
 				ini = input()
 			if distance > step_length:
 				n_steps = int(distance / step_length)

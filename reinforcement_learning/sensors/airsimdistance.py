@@ -2,7 +2,7 @@
 from sensors.sensor import Sensor
 import setup_path # need this in same directory as python code for airsim
 import airsim
-import rl_utils as _utils
+import global_methods as md
 from observations.vector import Vector
 import numpy as np
 from component import _init_wrapper

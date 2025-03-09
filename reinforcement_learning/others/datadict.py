@@ -2,7 +2,7 @@ from others.other import Other
 from component import _init_wrapper
 import numpy as np
 import random
-import rl_utils as _utils
+import global_methods as md
 import os
 
 # reads saved observations from dictionary
@@ -50,7 +50,7 @@ class DataDict(Other):
 			this_id_name = parts[0]
 			if this_id_name not in self.id_name:
 				continue
-			data_dict = _utils.pk_read(f'{self.data_dir}{file_name}')
+			data_dict = md.pk_read(f'{self.data_dir}{file_name}')
 			for x in data_dict:
 				if x not in self.x_vals:
 					continue

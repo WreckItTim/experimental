@@ -1,5 +1,5 @@
 from maps.map import Map
-import rl_utils as _utils
+import global_methods as md
 import subprocess
 import os
 from component import _init_wrapper
@@ -74,13 +74,13 @@ class AirSimMap(Map):
 			self._settings_path = os.getcwd() + '/temp/overwrite_settings.json'
 			self.write_settings(self.settings, self._settings_path)
 			if 'LocalHostIp' in self.settings:
-				_utils.set_local_parameter('LocalHostIp', self.settings['LocalHostIp'])
+				md.set_global_parameter('LocalHostIp', self.settings['LocalHostIp'])
 			else:
-				_utils.set_local_parameter('LocalHostIp', '127.0.0.1')
+				md.set_global_parameter('LocalHostIp', '127.0.0.1')
 			if 'ApiServerPort' in self.settings:
-				_utils.set_local_parameter('ApiServerPort', self.settings['ApiServerPort'])
+				md.set_global_parameter('ApiServerPort', self.settings['ApiServerPort'])
 			else:
-				_utils.set_local_parameter('ApiServerPort', 41451)
+				md.set_global_parameter('ApiServerPort', 41451)
 			# pipeline to open for console output
 
 	def in_object(self, x, y, z):
@@ -120,13 +120,13 @@ class AirSimMap(Map):
 	# launch airsim map
 	def connect(self, from_crash=False):
 		if from_crash:
-			_utils.speak('Recovering from AirSim crash...')
+			md.speak('Recovering from AirSim crash...')
 			self.disconnect()
 		else:
 			super().connect()
 		
 		# check OS to determine how to launch map
-		OS = _utils.get_local_parameter('OS')
+		OS = md.get_global_parameter('OS')
 		# set flags
 		flags = ''
 		if self.console_flags is not None:
@@ -136,26 +136,26 @@ class AirSimMap(Map):
 			_release_path = self.release_path
 			# send command to terminal to launch the relase executable, if can
 			if os.path.exists(_release_path):
-				_utils.speak(f'Launching AirSim at {_release_path}')
+				md.speak(f'Launching AirSim at {_release_path}')
 				terminal_command = f'{_release_path} {flags} -settings=\"{self._settings_path}\"'
-				_utils.speak(f'Issuing command to OS: {terminal_command}')
+				md.speak(f'Issuing command to OS: {terminal_command}')
 				process = subprocess.Popen(terminal_command, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
 				self._pid = process.pid
 			else:
-				_utils.speak('AirSim release path DNE.')
+				md.speak('AirSim release path DNE.')
 		elif OS == 'linux':
 			_release_path = self.release_path
 			# send command to terminal to launch the relase executable, if can
 			if os.path.exists(_release_path):
-				_utils.speak(f'Launching AirSim at {_release_path}')
+				md.speak(f'Launching AirSim at {_release_path}')
 				terminal_command = f'sh {_release_path} {flags} -settings=\"{self._settings_path}\"'
-				_utils.speak(f'Issuing command to OS: {terminal_command}')
+				md.speak(f'Issuing command to OS: {terminal_command}')
 				process = subprocess.Popen(terminal_command, shell=True, start_new_session=True)
 				self._pid = process.pid
 			else:
-				_utils.speak('AirSim release path DNE.')
+				md.speak('AirSim release path DNE.')
 		else:
-			_utils.speak('incompatible OS.')
+			md.speak('incompatible OS.')
 				
 		# wait for map to load
 		time.sleep(60)
@@ -163,8 +163,8 @@ class AirSimMap(Map):
 		# establish communication link with airsim client
 		if self.vehicle in ['multirotor']:
 			self._client = airsim.MultirotorClient(
-				ip=_utils.get_local_parameter('LocalHostIp'),
-				port=_utils.get_local_parameter('ApiServerPort'),
+				ip=md.get_global_parameter('LocalHostIp'),
+				port=md.get_global_parameter('ApiServerPort'),
 				timeout_value=10,
 			)
 		else:
@@ -232,13 +232,13 @@ class AirSimMap(Map):
 		merged_settings = {}
 		for setting_file in setting_files:
 			setting_path = os.path.join(settings_directory, setting_file) + '.json'
-			setting = _utils.read_json(setting_path)
+			setting = md.read_json(setting_path)
 			merged_settings.update(setting)
 		return merged_settings
 
 	# write a json settings dictionary to file
 	def write_settings(self, merged_settings, settings_path):
-		_utils.write_json(merged_settings, settings_path)
+		md.write_json(merged_settings, settings_path)
 
 	def set_segmentation(self):
 		# burn one
@@ -402,7 +402,7 @@ class AirSimMap(Map):
 				self._client.simSetSegmentationObjectID(obj, 0, True)
 				#print('other object name', obj, 'assigned', 0)
 
-		working_directory = _utils.get_local_parameter('working_directory')
-		part_name = _utils.get_local_parameter('part_name')
-		_utils.write_json(colors, f'{working_directory}segmentation_colors__{part_name}.json')
-		_utils.write_json(obj_ids, f'{working_directory}obj_ids__{part_name}.json')
+		working_directory = md.get_global_parameter('working_directory')
+		part_name = md.get_global_parameter('part_name')
+		md.write_json(colors, f'{working_directory}segmentation_colors__{part_name}.json')
+		md.write_json(obj_ids, f'{working_directory}obj_ids__{part_name}.json')

@@ -2,10 +2,8 @@ from controllers.controller import Controller
 from component import _init_wrapper
 import numpy as np
 import math
-import rl_utils as _utils
-
+import global_methods as md
 import os
-import pickle
 import time
 
 # collects data by collecting observations
@@ -21,7 +19,6 @@ class Data(Controller):
 				 map_component, # map to handle crash with
 				 points, # list of points to capture data from
 				 part_name='', # str value used purely for read/write purposes for unique file names
-				 job_name='data', # unique-enough name for logging progress
 				 states=[], # list of states at each point to pass into sensor.step()
 				 crash_handler=True,
 				 discretize=True,
@@ -39,8 +36,8 @@ class Data(Controller):
 			self.run = self.run_without_crash
 
 	def start(self):
-		_utils.progress(self.job_name, f'collected 0%')
-		working_directory = _utils.get_local_parameter('working_directory')
+		md.progress(md.get_global_parameter('job_name'), f'collected 0%')
+		working_directory = md.get_global_parameter('working_directory')
 		self._last_obs = None
 
 		self._log_path = f'{working_directory}log__{self.part_name}.json'
@@ -70,7 +67,9 @@ class Data(Controller):
 
 		# data point exists yet?
 		if self.data_exists(x, y, z, yaw_idx, p_idx):
+			#print('data exists at', x, y, z, yaw_idx, p_idx)
 			return
+		#print('data does not exist at', x, y, z, yaw_idx, p_idx)
 
 		# make sensor observation at desired location
 		data, x_drone, y_drone, z_drone, yaw_drone = self.observe(x, y, z, yaw, p_idx, state)
@@ -133,11 +132,11 @@ class Data(Controller):
 					'n_points':len(self._point_list),
 			})
 			if self.save_as in ['dict']:
-				_utils.pk_write(self._data_dict, self._data_dict_path)
+				md.pk_write(self._data_dict, self._data_dict_path)
 			if self.save_as in ['list']:
-				_utils.pk_write(self._data_list, self._data_list_path)
-			_utils.pk_write(self._point_list, self._point_list_path)
-			_utils.write_json(self._log, self._log_path)
+				md.pk_write(self._data_list, self._data_list_path)
+			md.pk_write(self._point_list, self._point_list_path)
+			md.write_json(self._log, self._log_path)
 		self._added_points = 0
 
 	def data_exists(self, x, y, z, yaw_idx, p_idx):
@@ -174,7 +173,7 @@ class Data(Controller):
 		self._added_points += 1
 
 	def add_log(self, entry_dict):
-		timestamp = _utils.get_timestamp()
+		timestamp = md.get_timestamp()
 		#entry_dict.update({'timestamp':timestamp})
 		self._log[timestamp] = entry_dict
 
@@ -182,7 +181,7 @@ class Data(Controller):
 		x, y, z, yaw = point
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw_idx = _utils.yaw_to_idx(yaw)
+			yaw_idx = md.yaw_to_idx(yaw)
 		else:
 			yaw_idx = yaw
 		return x, y, z, yaw, yaw_idx
@@ -239,30 +238,32 @@ class Data(Controller):
 	def checkpoint(self, p_idx):
 		self.write_data()
 		percent_complete = int(100 * p_idx / len(self.points))
-		_utils.progress(self.job_name, f'collected {percent_complete}%')
-		_utils.speak(f'{percent_complete}% data collected! On point index {p_idx}')
+		md.progress(md.get_global_parameter('job_name'), f'collected {percent_complete}%')
+		md.speak(f'{percent_complete}% data collected! On point index {p_idx}')
 
 	def read_data_dict(self):
 		try:
-			self._data_dict = _utils.pk_read(self._data_dict_path)
+			self._data_dict = md.pk_read(self._data_dict_path)
+			#print('read data dict at', self._data_dict_path)
+			#ini = input()
 		except:
 			self._data_dict = {}
 
 	def read_data_list(self):	
 		try:
-			self._data_list = _utils.pk_read(self._data_list_path)
+			self._data_list = md.pk_read(self._data_list_path)
 		except:	
 			self._data_list = []
 
 	def read_point_list(self):	
 		try:
-			self._point_list = _utils.pk_read(self._point_list_path)
+			self._point_list = md.pk_read(self._point_list_path)
 		except:	
 			self._point_list = []
 
 	def read_log(self):	
 		try:
-			self._log = _utils.read_json(self._log_path)
+			self._log = md.read_json(self._log_path)
 		except:	
 			self._log = {}
 
@@ -290,9 +291,9 @@ class Data(Controller):
 					self.get_data_point(point, p_idx, state)
 					try_again = False # crash handler
 				except self._exception as e: # crash handler
-					_utils.speak(str(e) + ' crash caught at point index # ' + str(p_idx)) # crash handler
+					md.speak(str(e) + ' crash caught at point index # ' + str(p_idx)) # crash handler
 					self._map.connect(from_crash=True) # crash handler
-					_utils.speak(str(e) + ' recovered from crash') # crash handler
+					md.speak(str(e) + ' recovered from crash') # crash handler
 					self.add_log({
 						'entry':'crash',
 						'point':point,

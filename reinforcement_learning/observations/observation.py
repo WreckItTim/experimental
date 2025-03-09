@@ -1,5 +1,5 @@
 # abstract class used to handle observations - sensor responses
-import rl_utils as _utils
+import global_methods as md
 import os
 import numpy as np
 

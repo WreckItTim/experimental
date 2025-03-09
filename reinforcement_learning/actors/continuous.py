@@ -2,7 +2,7 @@ from actors.actor import Actor
 from component import _init_wrapper
 from gymnasium import spaces
 import numpy as np
-import rl_utils as _utils
+import global_methods as md
 import random
 
 # handles  continuous actions - RL returns an index specifying which action to take
@@ -34,7 +34,7 @@ class Continuous(Actor):
 			}
 		else:
 			sampled_output = state['rl_output']
-		_utils.speak(f'taking actions from continuous action-space: {sampled_output}...')
+		md.speak(f'taking actions from continuous action-space: {sampled_output}...')
 		self.step(state)
 
 

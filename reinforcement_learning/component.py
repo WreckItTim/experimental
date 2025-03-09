@@ -1,4 +1,4 @@
-import rl_utils as _utils
+import global_methods as md
 import numpy as np
 from time import time
 from sys import getsizeof
@@ -133,7 +133,7 @@ def _init_wrapper(init_method):
 						elif isinstance(value, Component):
 							component_name = value._name
 						else:
-							_utils.error('passed in argument as _component in _components list, but argument is not str or component type')
+							md.error('passed in argument as _component in _components list, but argument is not str or component type')
 						component_names.append(component_name)
 				self._connect_components_list.append((member_name, component_names))
 				setattr(self, key, component_names)
@@ -148,7 +148,7 @@ def _init_wrapper(init_method):
 				elif isinstance(value, Component):
 					component_name = value._name
 				else:
-					_utils.error('passed in argument as _component but is not str or component type')
+					md.error('passed in argument as _component but is not str or component type')
 				self._connect_component_list.append((member_name, component_name))
 				setattr(self, key, component_name)
 			# set all (other) public arguments
@@ -269,9 +269,9 @@ class Component():
 				component = self._configuration.get_component(component_name)
 			setattr(self, member_name, component)
 		if hasattr(self, '_name'):
-			_utils.speak(f'connected component with name {self._name}')
+			md.speak(f'connected component with name {self._name}')
 		else:
-			_utils.speak(f'connected component of type {type(self)}')
+			md.speak(f'connected component of type {type(self)}')
 
 	# this will toggle if keep track of vars to save
 	# warning this can be expensive
@@ -310,7 +310,7 @@ class Component():
 	def check(self, child_type):
 		ok = isinstance(self, child_type) 
 		if not ok:
-			_utils.error(f'Can not handle child type of {self._child().__name__}, requires {child_type.__name__}')
+			md.error(f'Can not handle child type of {self._child().__name__}, requires {child_type.__name__}')
 
 	# return parent type
 	def _parent(self):
