@@ -5,7 +5,9 @@ __pycache__/
 .vs/
 **/.vs/
 overseer/
-shortest_path/
+shortest_path/*
+!shortest_path/binvox
+!shortest_path/shortest_methods.py
 supervised_learning/*
 !supervised_learning/supervised_methods.py
 !supervised_learning/depth_2d_extraction/
