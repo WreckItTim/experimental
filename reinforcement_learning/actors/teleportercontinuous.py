@@ -2,7 +2,7 @@ from actors.actor import Actor
 from component import _init_wrapper
 from gymnasium import spaces
 import numpy as np
-import global_methods as md
+import utils.global_methods as gm
 import random
 import math
 
@@ -57,7 +57,7 @@ class TeleporterContinuous(Actor):
 	# randomly sample RL output from action space unless specified
 	def debug(self, state=None):
 		if state is None:
-			x = md.prompt('enter r to randomize or rl_output values')
+			x = gm.prompt('enter r to randomize or rl_output values')
 			if x == 'r':
 				sampled_output = np.zeros(len(self._actions), dtype=float)
 				for idx, action in enumerate(self._actions):
@@ -69,7 +69,7 @@ class TeleporterContinuous(Actor):
 			}
 		else:
 			sampled_output = state['rl_output']
-		md.speak(f'taking actions from continuous action-space: {sampled_output}...')
+		gm.speak(f'taking actions from continuous action-space: {sampled_output}...')
 		self.step(state)
 
 

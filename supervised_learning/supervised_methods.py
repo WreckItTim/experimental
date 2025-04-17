@@ -4,13 +4,16 @@ from torch import nn
 from functools import partial
 import multiprocessing as mp
 from IPython.display import clear_output
-from utils.global_methods import * # sys.path.append('path/to/parent/repo/')
+from utils.global_methods import * # sys.path.append('path/to/parent/repo/') from parent code
+import copy
+import numpy as np
+import matplotlib.pyplot as plt
 
 print('cpu count:', os.cpu_count())
 print('gpu count:', th.cuda.device_count())
 print('cuda avail:', th.cuda.is_available())
     
-# this class handles metric evaluations given true inputs and predicted ones, includes distros
+# metric evaluations given true inputs and predicted ones, includes distros
     # i.e. rmse, r2, kld
 def mean_squared_error(Y, P):
     return ((Y.flatten()-P.flatten())**2).mean()
@@ -26,6 +29,11 @@ def mean_absolute_percent_error_numpy(Y, P):
     Y = Y.flatten()
     P = P.flatten()
     return float(np.abs((Y-P)/Y).mean())
+# calculates error metrics per instance
+def r2_scores(Y, P):
+    return [r2_score(Y[i], P[i]) for i in range(len(Y))]
+def mean_absolute_percent_errors_numpy(Y, P):
+    return [mean_absolute_percent_error_numpy(Y[i], P[i]) for i in range(len(Y))]
 
 
 
@@ -136,88 +144,79 @@ def create_cnn(block_layers):
     
     return model
 
-# evaluates model with given torch dataloader
-    # metric_func will calculate some
-    # with_grad will update model after evaluation
-def truths(Y, P):
-    return Y
-def predictions(Y, P):
-    return P
-def evaluate(model, DL, error_func=None, device='cpu',
-             with_grad=False, criterion=None, mem_optim=False, Y_shape=None,
-            ):
-    if error_func is not None:
-        if Y_shape is None:
-            Y_shape = list(DL.dataset.Y.shape)
-            Y_shape[0] = len(DL.dataset)
-        Y = th.zeros(Y_shape, dtype=th.float32)#DL.dataset.Y.dtype)
-        P = th.zeros(Y_shape, dtype=th.float32)#DL.dataset.Y.dtype)
-        idx = 0
+def forward_val(model, DL, device, criterion, mem_optim=True):
+    losses = []
     for i, data in enumerate(DL):
         x, y = data
-        # update params with gradient?
-        if with_grad:
-            model.optimizer.zero_grad()
-            p = model(x.to(device=device))
-            loss = criterion(p, y.to(device=device))
-            loss.backward()
-            model.optimizer.step()
-        else:
-            with th.no_grad():
-                p = model(x.to(device=device))
-        if error_func is not None:
-            Y[idx:idx+len(y)] = y#.cpu().detach().numpy()
-            P[idx:idx+len(p)] = p#.cpu().detach().numpy()
-            idx += len(p)
-        if mem_optim:
-            del x, y, p # clear mem from gpu
-    if error_func is not None:
-        return error_func(Y, P)
-# no y
-def foward_predictions(model, DL, output_shape, device='cpu', mem_optim=False):
-    P = th.zeros(output_shape, dtype=th.float32)
-    idx = 0
-    for i, data in enumerate(DL):
-        x = data
         with th.no_grad():
             p = model(x.to(device=device))
-        P[idx:idx+len(p)] = p#.cpu().detach().numpy()
-        idx += len(p)
+            loss = float(criterion(p, y.to(device=device)).detach().cpu())
+            losses.append(loss)
+        if mem_optim:
+            del x, y, p # clear mem from gpu
+    return float(np.mean(losses))
+def forward_train(model, DL, device, criterion, mem_optim=True):
+    losses = []
+    for i, data in enumerate(DL):
+        x, y = data
+        model.optimizer.zero_grad()
+        p = model(x.to(device=device))
+        loss = criterion(p, y.to(device=device))
+        loss.backward()
+        model.optimizer.step()
+        losses.append(float(loss.detach().cpu()))
+        if mem_optim:
+            del x, y, p # clear mem from gpu
+    return float(np.mean(losses))
+def forward_predictions(model, DL, device, mem_optim=True, DL_includes_y=False,
+                       unprocess_func=None, unprocess_params={}):
+    P = []
+    idx = 0
+    for i, data in enumerate(DL):
+        if DL_includes_y:
+            x, y = data
+        else:
+            x = data
+        with th.no_grad():
+            p = model(x.to(device=device)).cpu().detach().numpy()
+            if unprocess_func is not None:
+                p = unprocess_func(p, **unprocess_params)
+            P.append(p)
         if mem_optim:
             del x, p # clear mem from gpu
-    return P
-
+    return np.vstack(P)
 # train neural network model
 def train(model, DL_train, DL_val=None,
-          device='cpu', criterion=nn.MSELoss(), error_func=mean_squared_error, minimize_error=True,
+          device='cpu', criterion=nn.MSELoss(), minimize_error=True,
           patience=10, max_epochs=10_000, augmentors=None, show_curve=True, show_curve_freq=1,
-          pytorch_threads=1, checkpoint_freq=0, run_path=None, mem_optim=True 
+          pytorch_threads=1, checkpoint_freq=0, run_path=None, output_progress=True,
+          forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},
          ):
-    def forward_train(DL):
+    def _forward_train(DL):
         if augmentors is not None:
             X_old = DL.dataset.X.copy()
             Y_old = DL.dataset.Y.copy()
             for augmentor in augmentors:
                 DL.dataset.X = augmentor.augment(DL.dataset.X)
         model.train()
-        error = evaluate(model, DL, error_func, device, with_grad=True, criterion=criterion, mem_optim=mem_optim)
+        mean_loss = forward_train_func(model, DL, device, criterion, **forward_train_extra_params)
         if augmentors is not None:
             DL.dataset.X = X_old
             DL.dataset.Y = Y_old
-        return float(error)
+        return mean_loss
 
-    def forward_val(DL):     
+    def _forward_val(DL):
         model.eval()
-        error = evaluate(model, DL, error_func, device, mem_optim=mem_optim)
-        return float(error)
+        mean_loss = forward_val_func(model, DL, device, criterion, **forward_val_extra_params)
+        return mean_loss
 
     th.set_num_threads(pytorch_threads)
     best_weights = copy.deepcopy(model.state_dict())
     wait = 0
-    train_errors = [forward_val(DL_train)]
+    train_errors = [_forward_val(DL_train)]
     val_errors = None
     if DL_val is not None:
-        val_errors = [forward_val(DL_val)]
+        val_errors = [_forward_val(DL_val)]
         best_error = val_errors[0]
     train_times = []
     error_multiplier = 1 if minimize_error else -1
@@ -232,10 +231,10 @@ def train(model, DL_train, DL_val=None,
             plt.ylabel('Loss')
             plt.show()
         sw = Stopwatch()
-        train_error = forward_train(DL_train)
+        train_error = _forward_train(DL_train)
         train_errors.append(train_error)
         if DL_val is not None:
-            val_error = forward_val(DL_val)
+            val_error = _forward_val(DL_val)
             val_errors.append(val_error)
             if error_multiplier*val_error < error_multiplier*best_error:
                 best_error = val_error
@@ -243,23 +242,26 @@ def train(model, DL_train, DL_val=None,
                 wait = 0
             else:
                 wait += 1
-        #print(train_error, val_error)
-        train_times.append(sw.stop())
+        epoch_time = sw.stop()
+        train_times.append(epoch_time)
+        print(epoch, train_error, val_error, epoch_time)
         if wait > patience:
             break
         if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
             th.save(model, run_path+'model_ckpt.pt')
             pk.dump(train_errors, open(run_path+'train_errors_ckpt.p', 'wb'))
             pk.dump(val_errors, open(run_path+'val_errors_ckpt.p', 'wb'))
+        if output_progress:
+            progress(get_global('job_name'), f'epoch {epoch} loss {round(val_error,4)} time {round(epoch_time,2)}')
     model.load_state_dict(best_weights)
     return model, train_errors, val_errors, train_times
 
-def get_test_predictions(model, DL, device, sample_size=0, test_dropout=False, augmentors=None, Y_shape=None):
+def get_test_predictions(model, DL, device, sample_size=0, test_dropout=False, augmentors=None):
     # get test predictions
     test_times = []
     sw = Stopwatch() 
     model.eval()
-    p_test = evaluate(model, DL, error_func=predictions, device=device, Y_shape=Y_shape)
+    p_test = forward_predictions(model, DL, device)
     test_times.append(sw.stop())
     if sample_size > 0:
         if augmentors is not None:
@@ -277,7 +279,7 @@ def get_test_predictions(model, DL, device, sample_size=0, test_dropout=False, a
             if augmentors is not None:
                 for augmentor in augmentors:
                     DL.dataset.X = augmentor.augment(DL.dataset.X)       
-            ps_test[l] = evaluate(model, DL, error_func=predictions, device=device, Y_shape=Y_shape)
+            ps_test[l] = forward_predictions(model, DL, device)
             test_times.append(sw.stop())
             if augmentors is not None:
                 DL.dataset.X = X_old.copy()
@@ -308,11 +310,12 @@ def get_idx(sI, eI, n):
 # X/Y train/val/test are dictionaries containing data indexed by their group name/number
     # to elimiate groups simply index by row number
 def one_fold(model_func, model_params, X_train, Y_train, X_val=None, Y_val=None,
-             optimizier_func=th.optim.Adam, optimizer_params={}, error_func=mean_squared_error, minimize_error=True,
+             optimizier_func=th.optim.Adam, optimizer_params={}, minimize_error=True,
              fold_num=0, splits=[0.6, 0.2, 0.2], criterion=nn.MSELoss(), patience=10, max_epochs=1_000, 
              augmentors=None, sample_size=None, device='cpu', batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False,
-             checkpoint_freq=0, folder_path='dummy/', random_seed=42, mem_optim=False,
+             checkpoint_freq=0, folder_path='dummy/', random_seed=42, 
              x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={},
+             forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},
             ):
     # set random seeds for replicability
     random.seed(random_seed)
@@ -370,19 +373,22 @@ def one_fold(model_func, model_params, X_train, Y_train, X_val=None, Y_val=None,
 
     # train model
     model, train_errors, val_errors, train_times = train(model=model, DL_train=DL_train, DL_val=DL_val, 
-        device=device, criterion=criterion, error_func=error_func, minimize_error=minimize_error, 
+        device=device, criterion=criterion, minimize_error=minimize_error, 
         patience=patience, max_epochs=max_epochs, augmentors=augmentors,
-        pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path, mem_optim=mem_optim)
+        pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path,
+        forward_train_func=forward_train_func, forward_train_extra_params=forward_train_extra_params, 
+        forward_val_func=forward_val_func, forward_val_extra_params=forward_val_extra_params,)
     
     return (model, train_idx, val_idx, test_idx, train_errors, val_errors, train_times)
 
 
 def one_shot(model_func, model_params, run_path, X_train, Y_train, X_val=None, Y_val=None,
-             optimizier_func=th.optim.Adam, optimizer_params={}, error_func=mean_squared_error, minimize_error=True,
+             optimizier_func=th.optim.Adam, optimizer_params={}, minimize_error=True,
              criterion=nn.MSELoss(), patience=10, max_epochs=1_000, 
              augmentors=None, sample_size=None, device='cpu', batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False,
-             checkpoint_freq=0, random_seed=42, mem_optim=False, show_curve=True, show_curve_freq=1,
+             checkpoint_freq=0, random_seed=42, show_curve=True, show_curve_freq=1,
              x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={},
+             forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},
             ):
     # set random seeds for replicability
     random.seed(random_seed)
@@ -411,19 +417,22 @@ def one_shot(model_func, model_params, run_path, X_train, Y_train, X_val=None, Y
 
     # train model
     model, train_errors, val_errors, train_times = train(model=model, DL_train=DL_train, DL_val=DL_val, 
-        device=device, criterion=criterion, error_func=error_func, minimize_error=minimize_error, 
+        device=device, criterion=criterion, minimize_error=minimize_error, 
         patience=patience, max_epochs=max_epochs, augmentors=augmentors, show_curve=show_curve, show_curve_freq=show_curve_freq,
-        pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path, mem_optim=mem_optim)
+        pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path, 
+        forward_train_func=forward_train_func, forward_train_extra_params=forward_train_extra_params, 
+        forward_val_func=forward_val_func, forward_val_extra_params=forward_val_extra_params,)
     
     return model, train_errors, val_errors, train_times
 
-def predict_model(model, device, X, output_shape, x_preproc_func=None, x_preproc_params={}, 
-                  batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False, mem_optim=False):
+def predict_model(model, device, X, x_preproc_func=None, x_preproc_params={}, 
+                  batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False,
+                 unprocess_func=None, unprocess_params={}):
     DL = preproc2(X, batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory,
                  x_preproc_func=x_preproc_func, x_preproc_params=x_preproc_params)
     th.set_num_threads(pytorch_threads)
     stopwatch = Stopwatch()
-    P = foward_predictions(model, DL, output_shape, device=device, mem_optim=mem_optim).detach().numpy()
+    P = forward_predictions(model, DL, device, unprocess_func=unprocess_func, unprocess_params=unprocess_params)
     predict_time = stopwatch.stop()
     return P, predict_time
 
@@ -433,6 +442,14 @@ def string_params(params):
         param = params[name]
         params2[name] = str(param)
     return params2
+
+# class Parallel:
+#     def __init__(self):
+#         pass
+
+#     def instance_error_job_setup(error_names, error_arrays):
+#         setatt
+#     def instance_error_job(error_funcs, )
     
 #### MAIN TRAINER CLASS to handle paralell training/evaluation of nueral nets
 class Trainer:
@@ -440,21 +457,26 @@ class Trainer:
         # the index of the list corresponds to a different group (which is variable and up to implementation)
         # for example each group can be a different watershed site
     # experiment_name is subset of parent folder
-    def __init__(self, experiment_name, X, Y, X_eval=None, Y_eval=None, parent_folder='results/',
-                     x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={}, unprocess_func=None, unprocess_params={}, ):
+    def __init__(self, experiment_name, X, Y, X_val=None, Y_val=None, parent_folder='results/',
+                     x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={}, unprocess_func=None, unprocess_params={}, 
+             forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},):
         # set params
         self.X = X
         self.Y = Y
-        self.X_eval = X_eval
-        self.Y_eval = Y_eval
+        self.X_val = X_val
+        self.Y_val = Y_val
         self.experiment_name = experiment_name
         self.parent_folder = parent_folder
         self.x_preproc_func = x_preproc_func
-        self.x_preproc_params = x_preproc_params
+        self.x_preproc_params = x_preproc_params.copy()
         self.y_preproc_func = y_preproc_func
-        self.y_preproc_params = y_preproc_params
+        self.y_preproc_params = y_preproc_params.copy()
         self.unprocess_func = unprocess_func
-        self.unprocess_params = unprocess_params
+        self.unprocess_params = unprocess_param.copy()
+        self.forward_train_func = forward_train_func
+        self.forward_train_extra_params = forward_train_extra_params.copy()
+        self.forward_val_func = forward_val_func
+        self.forward_val_extra_params = forward_val_extra_params.copy()
         self.set_dir()
         
     def combine_runs(self, include_model=False, fold=0):
@@ -564,7 +586,7 @@ class Trainer:
             results.append(self.single_job(job_name, params))
         return results
                 
-    def prediction_job(self, run_name, fold=0, device='cpu', multi_process_gpu=False, n_gpus=4, sets = ['train', 'val', 'eval'], mem_optim=False):
+    def prediction_job(self, run_name, fold=0, device='cpu', multi_process_gpu=False, n_gpus=4, sets = ['train', 'val', 'eval']):
         run_path = self.runs_path + run_name + '/'
         prediction_path = self.predictions_path + run_name + '.p'
         idx_path = run_path + 'idx_' + str(fold) + '_.p'
@@ -584,19 +606,19 @@ class Trainer:
         Ps = {}
         for s in sets:
             if s == 'eval':
-                x, y = np.vstack(self.X_eval), np.vstack(self.Y_eval)
+                x = np.vstack(self.X_val)
             else:
-                x, y = np.vstack(self.X[idxs[s]]), np.vstack(self.Y[idxs[s]])
-            DL = preproc(x, y, x_preproc_func=self.x_preproc_func, x_preproc_params=self.x_preproc_params, 
+                x = np.vstack(self.X[idxs[s]])
+            DL = preproc2(x, y, x_preproc_func=self.x_preproc_func, x_preproc_params=self.x_preproc_params, 
                          y_preproc_func=self.y_preproc_func, y_preproc_params=self.y_preproc_params)
-            P = evaluate(model, DL, error_func=predictions, device=device, mem_optim=mem_optim).detach().numpy()
+            P = forward_predictions(model, DL, device)
             if self.unprocess_func is not None:
                 P = self.unprocess_func(P, **self.unprocess_params)
             Ps[s] = P
             
         pk.dump(Ps, open(prediction_path, 'wb'))
 
-    def benchmark_job(self, run_name, err_funcs, fold=0, device='cpu', multi_process_gpu=False, n_gpus=4, b_eval=True,):
+    def benchmark_job(self, run_name, err_funcs, fold=0, device='cpu', multi_process_gpu=False, n_gpus=4, b_val=True,):
         prediction_path = self.predictions_path + run_name + '.p'
         run_path = self.runs_path + run_name + '/'
         benchmark_path = self.benchmarks_path + run_name + '.p'
@@ -617,7 +639,7 @@ class Trainer:
         for s in P:
             p = P[s]
             if s == 'eval':
-                y = self.Y_eval
+                y = self.Y_val
             else:
                 y = self.Y[idxs[s]]
             for err_name in err_funcs:
@@ -641,11 +663,11 @@ class Trainer:
                          run_name, nProcesses = 4, nFolds = 4, 
                          force_overwrite = False, save_all = True, save_log = True,
                          # one-fold params
-                         model_func=create_mlp, model_params={}, optimizier_func=th.optim.Adam, optimizer_params={}, error_func=mean_squared_error, 
+                         model_func=create_mlp, model_params={}, optimizier_func=th.optim.Adam, optimizer_params={}, 
                          minimize_error=True, fold_num=0, splits=[0.5, 0.25, 0.25], criterion=nn.MSELoss(), patience=10, max_epochs=1_000,
                          augmentors=None, sample_size=None,
                          device='cpu', batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False, 
-                         checkpoint_freq=0, random_seed=42, n_gpus=4, mem_optim=False,
+                         checkpoint_freq=0, random_seed=42, n_gpus=4,
                         ):
         params = locals()
         # get unique cuda device for multiprocessing
@@ -670,11 +692,12 @@ class Trainer:
         sw = Stopwatch()
         outputs = [one_fold(
             model_func, model_params, self.X, self.Y, self.X, self.Y,
-            optimizier_func, optimizer_params, error_func, minimize_error,
+            optimizier_func, optimizer_params, minimize_error,
             fold_num, splits, criterion, patience, max_epochs,
             augmentors, sample_size, device, batch_size, pytorch_threads, num_workers, pin_memory,
-            checkpoint_freq, run_path, random_seed, mem_optim, 
+            checkpoint_freq, run_path, random_seed, 
             self.x_preproc_func, self.x_preproc_params, self.y_preproc_func, self.y_preproc_params,
+            self.forward_train_func, self.forward_train_extra_params, self.forward_val_func, self.forward_val_extra_params,
         ) for fold_num in range(nFolds)]
 
         # aggregate results over all folds

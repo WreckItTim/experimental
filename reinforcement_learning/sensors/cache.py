@@ -4,7 +4,8 @@ from observations.image import Image
 from observations.array import Array
 from component import _init_wrapper
 import numpy as np
-import global_methods as md
+import map_data.map_methods as mm
+import utils.global_methods as gm
 import os
 
 import time
@@ -30,9 +31,9 @@ class Cache(Sensor):
 			  ):
 		super().__init__(offline, memory)
 		if not os.path.exists(self.sensor_dir):
-			md.speak(f'error: sensor named {self.sensor_name} DNE at observations path {self.observations_path}')
+			gm.speak(f'error: sensor named {self.sensor_name} DNE at observations path {self.observations_path}')
 		info_path = self.sensor_dir + 'info.json'
-		info = md.read_json(info_path)
+		info = gm.read_json(info_path)
 		self._obs_type = info['obs_type']
 		self._state_type = info['state_type']
 		self._vector_length = info['vector_length'] if 'vector_length' in info else 0
@@ -86,8 +87,8 @@ class Cache(Sensor):
 	
 	def send_query(self, state_name, state_type):
 		query_name = 'query__' + self.sensor_name + '__' + state_name + '__' + state_type
-		md.speak(query_name)
-		md.pk_write(1, self.queries_path+query_name+'.p')
+		gm.speak(query_name)
+		gm.pk_write(1, self.queries_path+query_name+'.p')
 
 	def step(self, state=None):
 		data = None
@@ -119,7 +120,7 @@ class Cache(Sensor):
 		# discretize
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw = md.yaw_to_idx(yaw)
+			yaw = mm.yaw_to_idx(yaw)
 		if data is None:
 			if self.use_dict:
 				data = self._datadict.get_data([x, y, z, yaw])

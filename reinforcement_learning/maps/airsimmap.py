@@ -1,5 +1,5 @@
 from maps.map import Map
-import global_methods as md
+import utils.global_methods as gm
 import subprocess
 import os
 from component import _init_wrapper
@@ -43,8 +43,7 @@ class AirSimMap(Map):
 					# update priority is given to the settings argument and last listed files
 					# amoung the settings must be information for which sensors to use
 					# below arg is a list of file names, see the maps/airsim_settings for examples
-					settings_directory:str = 'maps/airsim_settings/',
-					setting_files:list = ['vanilla'],
+					setting_file_paths:list = [],
 					# optional flags to put in command line when launching
 					console_flags = None,
 					remove_animals = True,
@@ -66,21 +65,21 @@ class AirSimMap(Map):
 				self.settings = settings.copy()
 			# read in any other settings files
 			other_settings = {}
-			if setting_files is not None:
-				other_settings = self.read_settings(settings_directory, setting_files)
+			if setting_file_paths is not None:
+				other_settings = self.read_settings(setting_file_paths)
 			# merge all settings
 			self.settings.update(other_settings)
 			# write to temp file to be read in when launching realease executable
-			self._settings_path = os.getcwd() + '/temp/overwrite_settings.json'
+			self._settings_path = gm.get_global('temp_dir') + 'overwrite_settings.json'
 			self.write_settings(self.settings, self._settings_path)
 			if 'LocalHostIp' in self.settings:
-				md.set_global_parameter('LocalHostIp', self.settings['LocalHostIp'])
+				gm.set_global('LocalHostIp', self.settings['LocalHostIp'])
 			else:
-				md.set_global_parameter('LocalHostIp', '127.0.0.1')
+				gm.set_global('LocalHostIp', '127.0.0.1')
 			if 'ApiServerPort' in self.settings:
-				md.set_global_parameter('ApiServerPort', self.settings['ApiServerPort'])
+				gm.set_global('ApiServerPort', self.settings['ApiServerPort'])
 			else:
-				md.set_global_parameter('ApiServerPort', 41451)
+				gm.set_global('ApiServerPort', 41451)
 			# pipeline to open for console output
 
 	def in_object(self, x, y, z):
@@ -120,13 +119,13 @@ class AirSimMap(Map):
 	# launch airsim map
 	def connect(self, from_crash=False):
 		if from_crash:
-			md.speak('Recovering from AirSim crash...')
+			gm.speak('Recovering from AirSim crash...')
 			self.disconnect()
 		else:
 			super().connect()
 		
 		# check OS to determine how to launch map
-		OS = md.get_global_parameter('OS')
+		OS = gm.get_global('OS')
 		# set flags
 		flags = ''
 		if self.console_flags is not None:
@@ -136,26 +135,26 @@ class AirSimMap(Map):
 			_release_path = self.release_path
 			# send command to terminal to launch the relase executable, if can
 			if os.path.exists(_release_path):
-				md.speak(f'Launching AirSim at {_release_path}')
+				gm.speak(f'Launching AirSim at {_release_path}')
 				terminal_command = f'{_release_path} {flags} -settings=\"{self._settings_path}\"'
-				md.speak(f'Issuing command to OS: {terminal_command}')
+				gm.speak(f'Issuing command to OS: {terminal_command}')
 				process = subprocess.Popen(terminal_command, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
 				self._pid = process.pid
 			else:
-				md.speak('AirSim release path DNE.')
+				gm.speak('AirSim release path DNE.')
 		elif OS == 'linux':
 			_release_path = self.release_path
 			# send command to terminal to launch the relase executable, if can
 			if os.path.exists(_release_path):
-				md.speak(f'Launching AirSim at {_release_path}')
+				gm.speak(f'Launching AirSim at {_release_path}')
 				terminal_command = f'sh {_release_path} {flags} -settings=\"{self._settings_path}\"'
-				md.speak(f'Issuing command to OS: {terminal_command}')
+				gm.speak(f'Issuing command to OS: {terminal_command}')
 				process = subprocess.Popen(terminal_command, shell=True, start_new_session=True)
 				self._pid = process.pid
 			else:
-				md.speak('AirSim release path DNE.')
+				gm.speak('AirSim release path DNE.')
 		else:
-			md.speak('incompatible OS.')
+			gm.speak('incompatible OS.')
 				
 		# wait for map to load
 		time.sleep(60)
@@ -163,8 +162,8 @@ class AirSimMap(Map):
 		# establish communication link with airsim client
 		if self.vehicle in ['multirotor']:
 			self._client = airsim.MultirotorClient(
-				ip=md.get_global_parameter('LocalHostIp'),
-				port=md.get_global_parameter('ApiServerPort'),
+				ip=gm.get_global('LocalHostIp'),
+				port=gm.get_global('ApiServerPort'),
 				timeout_value=10,
 			)
 		else:
@@ -228,17 +227,16 @@ class AirSimMap(Map):
 				pass
 	
 	# read several json files with Airsim settings and merge
-	def read_settings(self, settings_directory, setting_files):
+	def read_settings(self, setting_file_paths):
 		merged_settings = {}
-		for setting_file in setting_files:
-			setting_path = os.path.join(settings_directory, setting_file) + '.json'
-			setting = md.read_json(setting_path)
+		for setting_file_path in setting_file_paths:
+			setting = gm.read_json(setting_file_path)
 			merged_settings.update(setting)
 		return merged_settings
 
 	# write a json settings dictionary to file
 	def write_settings(self, merged_settings, settings_path):
-		md.write_json(merged_settings, settings_path)
+		gm.write_json(merged_settings, settings_path)
 
 	def set_segmentation(self):
 		# burn one
@@ -402,7 +400,7 @@ class AirSimMap(Map):
 				self._client.simSetSegmentationObjectID(obj, 0, True)
 				#print('other object name', obj, 'assigned', 0)
 
-		working_directory = md.get_global_parameter('working_directory')
-		part_name = md.get_global_parameter('part_name')
-		md.write_json(colors, f'{working_directory}segmentation_colors__{part_name}.json')
-		md.write_json(obj_ids, f'{working_directory}obj_ids__{part_name}.json')
+		output_dir = gm.get_global('output_dir')
+		part_name = gm.get_global('part_name')
+		gm.write_json(colors, f'{output_dir}segmentation_colors__{part_name}.json')
+		gm.write_json(obj_ids, f'{output_dir}obj_ids__{part_name}.json')

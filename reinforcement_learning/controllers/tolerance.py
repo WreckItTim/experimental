@@ -2,7 +2,7 @@ from controllers.controller import Controller
 from component import _init_wrapper
 import numpy as np
 import math
-import global_methods as md
+import utils.global_methods as gm
 
 import os
 import pickle
@@ -50,15 +50,15 @@ class Tolerance(Controller):
 		drone_x, drone_y, drone_z, drone_yaw,
 	):
 		if abs(drone_x-x) > self.tolerance_x:
-			md.speak(f'not within x tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
+			gm.speak(f'not within x tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
 		if abs(drone_y-y) > self.tolerance_y:
-			md.speak(f'not within y tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
+			gm.speak(f'not within y tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
 		if abs(drone_z-z) > self.tolerance_z:
-			md.speak(f'not within z tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
+			gm.speak(f'not within z tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
 		yaw_diff = abs(yaw - drone_yaw)
 		yaw_diff = min(2*math.pi - yaw_diff, yaw_diff)
 		if yaw_diff > self.tolerance_yaw:
-			md.speak(f'not within yaw tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
+			gm.speak(f'not within yaw tolerance! {x} {y} {z} {yaw} {drone_x} {drone_y} {drone_z} {drone_yaw}')
 
 	def goto_data_point(self, point, p_idx):
 		x, y, z, yaw = point
@@ -75,7 +75,7 @@ class Tolerance(Controller):
 			drone_x, drone_y, drone_z, drone_yaw,
 		)
 		if p_idx%100 == 0:
-			md.progress(self.job_name, f'collected {int(100*p_idx/len(self.points))}%')
+			gm.progress(self.job_name, f'collected {int(100*p_idx/len(self.points))}%')
 
 	def run_without_crash(self):
 		self.start()
@@ -101,6 +101,6 @@ class Tolerance(Controller):
 					self.get_data_point(point, p_idx, state)
 					try_again = False # crash handler
 				except self._exception as e: # crash handler
-					md.speak(str(e) + ' caught at point index # ' + str(p_idx)) # crash handler
+					gm.speak(str(e) + ' caught at point index # ' + str(p_idx)) # crash handler
 					self._map.connect(from_crash=True) # crash handler
-					md.speak(str(e) + ' recovered') # crash handler
+					gm.speak(str(e) + ' recovered') # crash handler

@@ -6,7 +6,7 @@ from observations.image import Image
 from observations.array import Array
 import numpy as np
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 import random
 
 # see https://microsoft.github.io/AirSim/image_apis/
@@ -77,7 +77,7 @@ class AirSimCamera(Sensor):
 	def step(self, state=None):
 		#response = self._airsim._client.simGetImage(self.camera_view, self.image_type)
 		#img = airsim.string_to_uint8_array(response)
-		#md.pk_write(img, 'img.p')
+		#gm.pk_write(img, 'img.p')
 		#print('IMG')
 		#print(response.height, response.width)
 		#ini = input()

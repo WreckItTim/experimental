@@ -1,6 +1,6 @@
 from modifiers.modifier import Modifier
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 import os
 
 # this will call save at
@@ -16,7 +16,7 @@ class Saver(Modifier):
 			save_config = False, # saves config file with every activate
 			save_benchmarks = False, # saves timer/mem benchmarks with every activate
 			save_log = False,
-			write_folder = None, # will default to working_directory/component_name/
+			write_folder = None, # will default to output_dir/component_name/
 			frequency = 1, # use modifiation after how many calls to parent method?
 			counter = 0, # keepts track of number of calls to parent method
 			activation_counter = 0, # keeps track of number of times activated
@@ -28,7 +28,7 @@ class Saver(Modifier):
 	def connect(self, state=None):
 		super().connect(state)
 		if self.write_folder is None:
-			self.write_folder = md.get_global_parameter('working_directory')
+			self.write_folder = gm.get_global('output_dir')
 			self.write_folder += self._base._name + '/'
 		self._base.set_save(True, self.track_vars)
 
@@ -58,5 +58,5 @@ class Saver(Modifier):
 			if self.save_benchmarks:
 				self._configuration.save_benchmarks()
 			if self.save_log:
-				md.print_local_log()
+				gm.print_local_log()
 			self.activation_counter += 1

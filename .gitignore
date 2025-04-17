@@ -25,4 +25,3 @@ map_data/voxels/
 models/*
 !models/README.txt
 !models/navigation_airsim_blocks_dqn_2d/
-!models/monocular_depth/

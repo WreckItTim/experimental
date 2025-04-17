@@ -1,4 +1,4 @@
-import global_methods as md
+import utils.global_methods as gm
 from configuration import Configuration
 import math
 import sys
@@ -12,10 +12,10 @@ models_dir = f'{home_dir}models/'
 # params set from arguments passed in python call
 rel_config_path = sys.argv[1] # relative path to configuration.json file to load rl components
 rel_model_path = sys.argv[2] # relative path to model.zip file to read with neural network
-rel_working_directory = md.fix_directory(sys.argv[3]) # relative path to write test results
+rel_output_dir = gm.fix_directory(sys.argv[3]) # relative path to write test results
 config_path = f'{models_dir}{rel_config_path}'
 model_path = f'{models_dir}{rel_model_path}'
-working_directory = f'{models_dir}{rel_working_directory}'
+output_dir = f'{models_dir}{rel_output_dir}'
 
 assert os.path.exists(config_path), f'configuration path DNE at {config_path}'
 assert os.path.exists(model_path), f'model path DNE at {model_path}'
@@ -27,7 +27,7 @@ start_level, max_level = 0, 5 # start_level, max_level to test on
 num_evals_per_sublevel = 100
 
 # setup for run, set system vars and prepare file system
-md.setup(working_directory)
+gm.setup(output_dir)
 
 ## read old CONFIGURATION 
 # SET META DATA (anything you want here for notes, just writes to config file as a dict)
@@ -51,7 +51,7 @@ motion = configuration.parameters['motion']
 rooftops_path = f'{data_path}rooftops/v1/{airsim_map}.p' # match to map or use voxels i
 x_bounds, y_bounds, z_bounds = modules.bounds_v1(airsim_map, motion) # bounds that drone can move around map in
 astar_paths_file = f'{data_path}astar_paths/v1/{airsim_map}_{motion}_test.p'
-astar_paths = md.pk_read(astar_paths_file)
+astar_paths = gm.pk_read(astar_paths_file)
 num_sublevels = np.sum([len(astar_paths['levels'][level]) for level in range(start_level, max_level+1)])
 num_episodes = int(num_evals_per_sublevel * num_sublevels)
 
@@ -60,7 +60,7 @@ from controllers.test import Test
 controller = Test(
 		environment_component = 'Environment', # environment to run test in
 		model_component = 'Model', # used to make predictions
-		results_directory = working_directory,
+		results_directory = output_dir,
 		num_episodes = num_episodes,
 	)
 configuration.set_controller(controller)
@@ -88,7 +88,7 @@ Saver(
 				#'observations', # uncomment this to write observations to file (can take alot of disk space)
 				'states',
 				],
-	write_folder = working_directory + 'states/',
+	write_folder = output_dir + 'states/',
 	order = 'post',
 	save_config = False,
 	save_benchmarks = False,
@@ -106,5 +106,5 @@ configuration.save()
 configuration.controller.run()
 
 # done
-md.speak('Evaluations done!')
+gm.speak('Evaluations done!')
 configuration.disconnect_all()

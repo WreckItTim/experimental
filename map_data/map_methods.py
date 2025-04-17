@@ -21,6 +21,17 @@ map_params = {
     },
 }
 
+# standard coords are +x facing right, +y facing up, +z facing out of paper
+# drone coords are +x facing up, +y facing right, +z facing into paper
+def drone_to_standard(x, y, z, airsim_map):
+    x_shift = map_params[airsim_map]['x_shift']
+    y_shift = map_params[airsim_map]['y_shift']
+    return y+y_shift, x+x_shift, -1*z
+def standard_to_drone(x, y, z, airsim_map):
+    x_shift = map_params[airsim_map]['x_shift']
+    y_shift = map_params[airsim_map]['y_shift']
+    return y-x_shift, x-y_shift, -1*z
+
 # **** SET GLOBAL VARIABLES ****
 class Globals:
     var_dict = {}
@@ -86,20 +97,20 @@ def load_rooftops(map_name, version='v1'):
     rooftops_arr = np.array(rooftops_arr)
     return rooftops_dict, rooftops_arr
 
-def get_rooftops(map_name, version='v1'):
+def get_rooftops(map_name, rooftops_version='v1'):
     rooftops = Globals.get('rooftops')
-    if version not in rooftops:
-        rooftops[version] = {}
-    if map_name not in rooftops[version]:
-        rooftops_dict, rooftops_arr = load_rooftops(map_name, version)
-        rooftops[version][map_name] = {}
-        rooftops[version][map_name]['dict'] = rooftops_dict
-        rooftops[version][map_name]['arr'] = rooftops_arr
-    return rooftops[version][map_name]['dict'], rooftops[version][map_name]['arr']
+    if rooftops_version not in rooftops:
+        rooftops[rooftops_version] = {}
+    if map_name not in rooftops[rooftops_version]:
+        rooftops_dict, rooftops_arr = load_rooftops(map_name, rooftops_version)
+        rooftops[rooftops_version][map_name] = {}
+        rooftops[rooftops_version][map_name]['dict'] = rooftops_dict
+        rooftops[rooftops_version][map_name]['arr'] = rooftops_arr
+    return rooftops[rooftops_version][map_name]['dict'], rooftops[rooftops_version][map_name]['arr']
     
 def plot_map(fig, ax, map_name, show_z=False, 
-             resolution=None, x_anchor=None, y_anchor=None, ):
-    rooftops_dict, rooftops_arr = get_rooftops(map_name)
+             resolution=None, x_anchor=None, y_anchor=None, rooftops_version='v1'):
+    rooftops_dict, rooftops_arr = get_rooftops(map_name, rooftops_version=rooftops_version)
     interval = 40
     x_min = list(rooftops_dict.keys())[0]
     y_min = list(rooftops_dict[x_min].keys())[0]
@@ -120,8 +131,8 @@ def plot_map(fig, ax, map_name, show_z=False,
         ax.set_ylim(x_anchor-resolution[0], x_anchor+resolution[0])
         ax.set_xlim(y_anchor-resolution[1], y_anchor+resolution[1])
     
-def view_map(fig, ax, x, y, z, yaw, map_name, 
-             start=None, target=None, path=None, show_z=False, resolution=None ):
+def view_map(fig, ax, map_name, x=None, y=None, z=None, yaw=None, 
+             start=None, target=None, path=None, show_z=False, resolution=None, rooftops_version='v1'):
     x_shift = map_params[map_name]['x_shift']
     y_shift = map_params[map_name]['y_shift']
     # yaw markers for each direction
@@ -131,7 +142,7 @@ def view_map(fig, ax, x, y, z, yaw, map_name,
         2:11,
         3:8,
     }
-    plot_map(fig, ax, map_name, show_z, resolution, x+x_shift, y+y_shift,)
+    plot_map(fig, ax, map_name, show_z, resolution, x+x_shift, y+y_shift, rooftops_version)
     ax.scatter(y+y_shift, x+x_shift, color='cyan', marker=yaw_markers[yaw])
     horizion = 255
     if yaw == 0: a, b, c, d = -1, 1, 1, 1
@@ -154,6 +165,35 @@ def view_map(fig, ax, x, y, z, yaw, map_name,
     ax.set_aspect('auto')
 
 
+# simple shows path on map
+# path is list of x,y,z,yaw points
+def view_path(map_name, path, target, show_z=True, resolution=None, x_anchor=None, y_anchor=None, rooftops_version='v1'):
+    x_shift = map_params[map_name]['x_shift']
+    y_shift = map_params[map_name]['y_shift']
+    # yaw markers for each direction
+    yaw_markers = {
+        0:10,
+        1:9,
+        2:11,
+        3:8,
+    }
+    fig, ax = plt.subplots()
+    # plot background map with all objects
+    plot_map(fig, ax, map_name, show_z, resolution, x_anchor, y_anchor, rooftops_version)
+    # plot each point on path
+    for point in path:
+        x, y, z, yaw = point
+        ax.scatter(y+y_shift, x+x_shift, color='cyan', marker=yaw_markers[yaw])
+    # plot start point
+    x, y, z, yaw = path[0]
+    ax.scatter(y+y_shift, x+x_shift, color='blue', marker='x', s=16)
+    # plot target point
+    x, y, z, yaw = target
+    ax.scatter(y+y_shift, x+x_shift, color='green', marker='*', s=32)
+    ax.set_aspect('auto')
+    return fig, ax
+
+
 def animate(map_name, sensor_names, ncols, nrows, frames, states, 
             start=None, target=None, show_path=False, text_blocks=None, resolution=None, sensor_psuedonames={}):
     # Create a figure and axes
@@ -170,7 +210,7 @@ def animate(map_name, sensor_names, ncols, nrows, frames, states,
         # view map
         ax = axs[0, 0]
         ax.clear()
-        view_map(fig, ax, x, y, z, yaw, map_name, start, target, path, False, resolution)
+        view_map(fig, ax, map_name, x, y, z, yaw, start, target, path, False, resolution)
         #ax.set_title(f'x:{int(x)} y:{int(y)} z:{int(z)} dir:{yaw}') # dir for d-pad direction -- 0,1,2,3
         ax.set_title(f'Birds-eye View') # dir for d-pad direction -- 0,1,2,3
         if show_path:
@@ -287,6 +327,10 @@ def animate(map_name, sensor_names, ncols, nrows, frames, states,
 
 def clear_cache(map_name=None, sensor_name=None):
     if map_name is None and sensor_name is None:
+        data_dicts = Globals.get('data_dicts')
+        loaded_parts = Globals.get('loaded_parts')
+        del data_dicts
+        del loaded_parts
         Globals.set('data_dicts', {map_name:{} for map_name in map_params})
         Globals.set('loaded_parts', {map_name:{} for map_name in map_params})
     else:
@@ -335,22 +379,19 @@ def get_data_point(_x, _y, _z, _yaw, map_name, sensor_name, id_names, ):
             if not (_x >= xmin and _x < xmax and _y >= ymin and _y < ymax and _z >= zmin and _z < zmax):
                 continue
             loaded_parts[map_name][sensor_name].append(part_name)
-            try:
-                data_dict_part = pk_read(f'{sensor_dir}{file_name}')
-                for x in data_dict_part:
-                    for y in data_dict_part[x]:
-                        for z in data_dict_part[x][y]:
-                            for yaw in data_dict_part[x][y][z]:
-                                if x not in data_dict:
-                                    data_dict[x] = {}
-                                if y not in data_dict[x]:
-                                    data_dict[x][y] = {}
-                                if z not in data_dict[x][y]:
-                                    data_dict[x][y][z] = {}
-                                observation = data_dict_part[x][y][z][yaw]
-                                data_dict[x][y][z][yaw] = observation
-            except:
-                continue
+            data_dict_part = pk_read(f'{sensor_dir}{file_name}')
+            for x in data_dict_part:
+                if x not in data_dict:
+                    data_dict[x] = {}
+                for y in data_dict_part[x]:
+                    if y not in data_dict[x]:
+                        data_dict[x][y] = {}
+                    for z in data_dict_part[x][y]:
+                        if z not in data_dict[x][y]:
+                            data_dict[x][y][z] = {}
+                        for yaw in data_dict_part[x][y][z]:
+                            observation = data_dict_part[x][y][z][yaw]
+                            data_dict[x][y][z][yaw] = observation
         try:
             observation = data_dict[_x][_y][_z][_yaw]     
         except:
@@ -513,7 +554,9 @@ def display_data_results(data, animation, sensor_psuedonames={}):
 # region = 'train' 'test' 'all'
 # sensor_names = ['DepthV2', 'SceneV1', etc]
 # resample=True to not use static set of random indicies (suggested resample=False for repeatibility)
-def get_data(map_name, sensor_names, region, sample_size=None, resample=False, id_names=['alpha'], ):
+# pull_from_end will get last number of data points (used for testing hold out sets)
+def get_data(map_name, sensor_names, region, sample_size=None, resample=False, id_names=['alpha'], 
+            pull_from_end=False):
     assert region in ['train', 'test', 'all', 'houses_train', 'houses_test', 'houses_all'], 'invalid region'
     # set coordinate ranges
     x_bounds, y_bounds, z_bounds = get_bounds(map_name, region)
@@ -543,7 +586,10 @@ def get_data(map_name, sensor_names, region, sample_size=None, resample=False, i
                 pk_write(idxs, coordinate_idxs_path)
         if not resample:
             idxs = pk_read(coordinate_idxs_path)
-        coordinates = coordinates[idxs[:sample_size]]
+        if pull_from_end:
+            coordinates = coordinates[idxs[len(idxs)-sample_size:]]
+        else:
+            coordinates = coordinates[idxs[:sample_size]]
     
     # fetch data from coordinates
     location_data, location_animation = data_at_coordinates(map_name, sensor_names, id_names, coordinates, make_animation=False, return_data=True)
@@ -559,11 +605,12 @@ def yaw_to_idx(yaw):
     yaw_idx = round(yaw/(np.pi/2))
     return yaw_idx
 
-def get_bounds(map_name, region):
+def get_bounds(map_name, region, motion='2d'):
     # bounds drone can move in
-    z_bounds = [-40, 0]
-    if region in ['astar']:
-        z_bounds = [4, 16] # set the valid bounds to explore for z-values in astar coords
+    if motion in ['2d']:
+        z_bounds = [-4, -4]
+    elif motion in ['3d']:
+        z_bounds = [-16, -4]
     if map_name in ['Blocks']:
         if region in ['all']:
             x_bounds = [-120, 100]
@@ -574,9 +621,6 @@ def get_bounds(map_name, region):
         elif region in ['test']:
             x_bounds = [-120, 0]
             y_bounds = [-140, 140]
-        elif region in ['astar']:
-            x_bounds = [0, 280] # set the valid bounds to explore for x-values in astar coords
-            y_bounds = [0, 220] # set the valid bounds to explore for y-values in astar coords
     if map_name in ['AirSimNH']:
         if region in ['all']:
             x_bounds = [-240, 240]
@@ -587,12 +631,6 @@ def get_bounds(map_name, region):
         elif region in ['test']:
             x_bounds = [-240, 10]
             y_bounds = [-240, 240]
-        elif region in ['astar']:
-            x_bounds = [0, 480] # set the valid bounds to explore for x-values in astar coords
-            y_bounds = [0, 480] # set the valid bounds to explore for y-values in astar coords
-        elif region in ['houses_astar']:
-            x_bounds = [80, 400] # set the valid bounds to explore for x-values in astar coords
-            y_bounds = [80, 400] # set the valid bounds to explore for y-values in astar coords
         elif region in ['houses_all']:
             x_bounds = [-160, 160]
             y_bounds = [-160, 160]
@@ -605,7 +643,7 @@ def get_bounds(map_name, region):
     return x_bounds, y_bounds, z_bounds
             
 # checks if coordinates are in object based on collision_threshold (meters) above rooftop (drone coords use -z for above floor)
-def in_object(x, y, z, map_name, collision_threshold=-2):
-    rooftops_dict, rooftops_arr = get_rooftops(map_name)
+def in_object(x, y, z, map_name, collision_threshold=-2, rooftops_version='v1'):
+    rooftops_dict, rooftops_arr = get_rooftops(map_name, rooftops_version=rooftops_version)
     roof = rooftops_dict[int(x)][int(y)]
     return bool(roof + collision_threshold < z)

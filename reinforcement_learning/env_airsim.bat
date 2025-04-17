@@ -53,3 +53,4 @@ python -m pip install --upgrade tornado==4.5.3
 python -m pip install --upgrade msgpack-python==0.5.6
 python -m pip install --upgrade msgpack-rpc-python==0.4.1
 python -m pip install --upgrade airsim==1.8.1
+python -m pip install --upgrade ipython==9.0.2

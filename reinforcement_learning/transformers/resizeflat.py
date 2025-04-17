@@ -4,7 +4,7 @@ from observations.vector import Vector
 from skimage.transform import resize
 import numpy as np
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 import cv2
 
 class ResizeFlat(Transformer):
@@ -25,7 +25,7 @@ class ResizeFlat(Transformer):
 		img_data = observation.to_numpy()
 		# TEMP CODE TODO:DELETE DELETE DELETE
 		#img_data = np.moveaxis(img_data, 0, 2)
-		#cv2.imwrite(md.get_global_parameter('working_directory') + 'tello_imgs/' + observation._name + '_post.png', img_data)
+		#cv2.imwrite(gm.get_global('output_dir') + 'tello_imgs/' + observation._name + '_post.png', img_data)
 		#img_data = np.moveaxis(img_data, 2, 0)
 		# TEMP CODE TODO:DELETE DELETE DELETE
 		#observation.check(Vector)

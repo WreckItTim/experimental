@@ -1,6 +1,6 @@
 from modifiers.modifier import Modifier
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 import random
 
 # this will adjust the altitude of a drone

@@ -1,6 +1,6 @@
 from others.other import Other
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 
 # rooftops handels a preprocessed data structure that is a dictionary:
 	# rooftops[x][y] = z    where z is the highest collidable surface at that x,y coordinate
@@ -18,7 +18,7 @@ class Rooftops(Other):
 	
 	def connect(self, state=None):
 		super().connect(state)
-		self._rooftops = md.pk_read(self.read_path)
+		self._rooftops = gm.pk_read(self.read_path)
 
 	def in_object(self, x, y, z):
 		roof = self.get_roof(x, y)

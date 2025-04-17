@@ -1,4 +1,4 @@
-import global_methods as md
+import utils.global_methods as gm
 import numpy as np
 from time import time
 from sys import getsizeof
@@ -133,7 +133,7 @@ def _init_wrapper(init_method):
 						elif isinstance(value, Component):
 							component_name = value._name
 						else:
-							md.error('passed in argument as _component in _components list, but argument is not str or component type')
+							gm.error('passed in argument as _component in _components list, but argument is not str or component type')
 						component_names.append(component_name)
 				self._connect_components_list.append((member_name, component_names))
 				setattr(self, key, component_names)
@@ -148,7 +148,7 @@ def _init_wrapper(init_method):
 				elif isinstance(value, Component):
 					component_name = value._name
 				else:
-					md.error('passed in argument as _component but is not str or component type')
+					gm.error('passed in argument as _component but is not str or component type')
 				self._connect_component_list.append((member_name, component_name))
 				setattr(self, key, component_name)
 			# set all (other) public arguments
@@ -268,10 +268,10 @@ class Component():
 			else:
 				component = self._configuration.get_component(component_name)
 			setattr(self, member_name, component)
-		if hasattr(self, '_name'):
-			md.speak(f'connected component with name {self._name}')
-		else:
-			md.speak(f'connected component of type {type(self)}')
+		#if hasattr(self, '_name'):
+		#	gm.speak(f'connected component with name {self._name}')
+		#else:
+		#	gm.speak(f'connected component of type {type(self)}')
 
 	# this will toggle if keep track of vars to save
 	# warning this can be expensive
@@ -310,7 +310,7 @@ class Component():
 	def check(self, child_type):
 		ok = isinstance(self, child_type) 
 		if not ok:
-			md.error(f'Can not handle child type of {self._child().__name__}, requires {child_type.__name__}')
+			gm.error(f'Can not handle child type of {self._child().__name__}, requires {child_type.__name__}')
 
 	# return parent type
 	def _parent(self):

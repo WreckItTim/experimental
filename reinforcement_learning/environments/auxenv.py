@@ -1,7 +1,7 @@
 from environments.environment import Environment
 from component import _init_wrapper
 import numpy as np
-import global_methods as md
+import utils.global_methods as gm
 import os
 from gymnasium import spaces
 
@@ -75,9 +75,9 @@ class AuxEnv(Environment):
 		try:
 			aux_obs, total_reward, done, truncated, state = self._step(rl_output, state)
 		except self._exception as e:
-			md.speak('*** crashed **')
+			gm.speak('*** crashed **')
 			self.handle_crash()
-			md.speak('*** recovered **')
+			gm.speak('*** recovered **')
 			# this is a hot fix, until SB3 has a way to remove erroneous steps
 			# however in the grand scheme this one step on the replay buffer shouldnt have such a drastic affect
 			aux_obs = self._null_data # fill with erroneous data (Zeros)
@@ -113,9 +113,9 @@ class AuxEnv(Environment):
 				aux_obs, state = self._reset(self, state, seed, increment=False)
 				try_again = False
 			except self._exception as e:
-				md.speak('*** crashed **')
+				gm.speak('*** crashed **')
 				self.handle_crash()
-				md.speak('*** recovered **')
+				gm.speak('*** recovered **')
 		return aux_obs, state
 
 	def _end(self, state=None):
@@ -134,6 +134,6 @@ class AuxEnv(Environment):
 				self._end(state)
 				try_again = False
 			except self._exception as e:
-				md.speak('*** crashed **')
+				gm.speak('*** crashed **')
 				self.handle_crash()
-				md.speak('*** recovered **')
+				gm.speak('*** recovered **')

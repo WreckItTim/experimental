@@ -1,7 +1,7 @@
 # used to handle array observations saved as np arrays
 from observations.observation import Observation
 import matplotlib.pyplot as plt
-import global_methods as md
+import utils.global_methods as gm
 
 class Array(Observation):
 
@@ -14,4 +14,4 @@ class Array(Observation):
 		print(self._data)
 		
 	def write(self, path_without_ftype, ftype='.p'):
-		md.pk_write(self._data, path_without_ftype + '.p')
+		gm.pk_write(self._data, path_without_ftype + '.p')

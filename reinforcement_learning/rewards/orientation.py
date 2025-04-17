@@ -2,7 +2,7 @@ from rewards.reward import Reward
 from component import _init_wrapper
 import numpy as np
 import math
-import global_methods as md
+import utils.global_methods as gm
 
 # calculates orientation between drone and point relative to starting position/orientation
 class Orientation(Reward):

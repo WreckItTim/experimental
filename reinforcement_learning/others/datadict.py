@@ -2,7 +2,7 @@ from others.other import Other
 from component import _init_wrapper
 import numpy as np
 import random
-import global_methods as md
+import utils.global_methods as gm
 import os
 
 # reads saved observations from dictionary
@@ -50,24 +50,24 @@ class DataDict(Other):
 			this_id_name = parts[0]
 			if this_id_name not in self.id_name:
 				continue
-			data_dict = md.pk_read(f'{self.data_dir}{file_name}')
+			data_dict = gm.pk_read(f'{self.data_dir}{file_name}')
 			for x in data_dict:
 				if x not in self.x_vals:
 					continue
+				if x not in self._data_dict:
+					self._data_dict[x] = {}
 				for y in data_dict[x]:
 					if y not in self.y_vals:
 						continue
+					if y not in self._data_dict[x]:
+						self._data_dict[x][y] = {}
 					for z in data_dict[x][y]:
 						if z not in self.z_vals:
 							continue
+						if z not in self._data_dict[x][y]:
+							self._data_dict[x][y][z] = {}
 						for yaw in data_dict[x][y][z]:
 							if yaw not in self.yaw_vals:
 								continue
-							if x not in self._data_dict:
-								self._data_dict[x] = {}
-							if y not in self._data_dict[x]:
-								self._data_dict[x][y] = {}
-							if z not in self._data_dict[x][y]:
-								self._data_dict[x][y][z] = {}
 							observation = data_dict[x][y][z][yaw]
 							self._data_dict[x][y][z][yaw] = observation

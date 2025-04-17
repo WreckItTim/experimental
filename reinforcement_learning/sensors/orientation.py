@@ -2,7 +2,7 @@ from sensors.sensor import Sensor
 from observations.vector import Vector
 from component import _init_wrapper
 import numpy as np
-import global_methods as md
+import utils.global_methods as gm
 import math
 
 # gets orientation from a miscellaneous component

@@ -1,20 +1,23 @@
 # ** insert this head at top of all main files with your proper paths **
-home_dir = '/home/tim/Dropbox/' # home directory of repo
 local_dir = '/home/tim/local/' # any local files outside of repo
-progress_dir = f'{local_dir}progress/'
-airsim_maps_dir = f'{local_dir}airsim_maps/'
-data_dir = f'{home_dir}data/'
-observations_dir = f'{data_dir}observations/'
-rooftops_dir = f'{data_dir}rooftops/'
-astar_dir = f'{data_dir}astar_paths/'
+home_dir = '/home/tim/Dropbox/experimental/' # home directory of repo
+temp_dir = f'{local_dir}temp/'
+maps_dir = f'{local_dir}airsim_maps/'
+import os
+os.chdir(home_dir)
 import sys
 sys.path.append(home_dir)
-from global_methods import *
-set_global_parameters({'local_dir':local_dir, 'progress_dir':progress_dir, 'airsim_maps_dir':airsim_maps_dir, 'home_dir':home_dir, 
-                       'data_dir':data_dir, 'observations_dir':observations_dir, 'rooftops_dir':rooftops_dir, 'astar_dir':astar_dir})
+import utils.global_methods as gm
+import map_data.map_methods as mm
+import reinforcement_learning.reinforcement_methods as rm
 
 # local imports
 from configuration import Configuration
+from controllers.data import Data
+import random
+import numpy as np
+import time
+initial_locals = locals().copy()
 
 # needed params 
 airsim_map = 'null'
@@ -28,34 +31,46 @@ render_screen = False # default to render off screen
 weather_type, weather_degree = -1, 0 # -1, 0 is sunny
 overwrite_directory = False # True will erase all files at otuput working directory
 rooftops_version = 'v1'
-id_name = 'alpha'
 remove_animals = True
 vehicle = 'multirotor'
-context = 'airsim'
 save_as = 'dict'
+id_name = 'alpha'
 
 # read params from command line
 if len(sys.argv) > 1:
-    arguments = parse_arguments(sys.argv[1:])
+    arguments = gm.parse_arguments(sys.argv[1:])
     locals().update(arguments)
-set_global_parameter('job_name', job_name)
-set_global_parameter('context', context)
+gm.set_global('job_name', job_name)
+gm.set_global('home_dir', home_dir)
+gm.set_global('local_dir', local_dir)
+gm.set_global('temp_dir', temp_dir)
 
 # set variable subpaths from root directories and params set above
 if airsim_map == 'Blocks':
-    release_path = f'{airsim_maps_dir}LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh'
+    release_path = f'{maps_dir}LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh'
 if airsim_map == 'AirSimNH':
-    release_path = f'{airsim_maps_dir}AirSimNH/LinuxNoEditor/AirSimNH.sh'
-rooftops_path = f'{rooftops_dir}{rooftops_version}/' + airsim_map + '.p' # match to map or use voxels if not available
-working_directory = f'{observations_dir}{sensor_name}/{airsim_map}/' # write run files to this directory
+    release_path = f'{maps_dir}AirSimNH/LinuxNoEditor/AirSimNH.sh'
+rooftops_dir = f'{home_dir}map_data/rooftops/'
+rooftops_path = f'{rooftops_dir}{rooftops_version}/{airsim_map}.p' # match to map or use voxels if not available
+output_dir = f'{home_dir}map_data/observations/{sensor_name}/{airsim_map}/' # write run files to this directory
+part_name = f'{id_name}_{xmin}_{xmax}_{xint}_{ymin}_{ymax}_{yint}_{zmin}_{zmax}_{zint}'
+complete_path = f'{output_dir}completed__{part_name}.p'
+gm.set_global('complete_path', complete_path)
+
+# how to handle if completed path already exists (showing a previous job has finished this data collection already)
+if os.path.exists(complete_path):
+    if overwrite_directory:
+        os.remove(complete_path)
+    else:
+        gm.progress(job_name, 'complete')
+        sys.exit()
+
 
 # setup for run, set system vars and prepare file system
-setup(working_directory, overwrite_directory) # WARNING: overwrite_directory=True will clear all old data in this folder
+gm.setup_output_dir(output_dir, overwrite_directory)
 
 # make data controller to teleport to each specified point and capture all data from given sensors
-from controllers.data import Data
-part_name = f'{id_name}_{xmin}_{xmax}_{xint}_{ymin}_{ymax}_{yint}_{zmin}_{zmax}_{zint}'
-set_global_parameter('part_name', part_name)
+gm.set_global('part_name', part_name)
 controller = Data(
     drone_component = 'Drone', # drone to issue commands to move around map
     sensor_component = sensor_name, # sensor to fetch data from
@@ -65,10 +80,16 @@ controller = Data(
     save_as = save_as,
 )
 
+# all variables here will be added to configuration parameters for reading later
+all_local_vars = locals()
+user_local_vars = {k:v for k, v in all_local_vars.items() if (not k.startswith('__') and k not in initial_locals and k not in ['initial_locals','all_local_vars'])}
+config_params = user_local_vars.copy()
+
 # make configuration object to add components to
 configuration = Configuration({})
 configuration.set_controller(controller)
-
+for key in config_params:
+    configuration.set_parameter(key, config_params[key])
 
 ##  **** CREATE COMPONENTS ****
 # note that all of the transformers and sensors are coded and registered here
@@ -116,18 +137,22 @@ Reduce(
 
 
 # ** SENSORS **
+camera_width = 144
+camera_height = 256
+image_type = 0
 
 segmentation = False
 
-## forward facing depth camera 256x144
+## forward facing depth camera 144x256
 if sensor_name == 'DepthV1':
-    array_size = [1,144,256]
+    image_type = 2
+    array_size = [1,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0', 
-        image_type = 2,
+        image_type = image_type,
         transformers_components = ['NormalizeDistance', 'DataType8'],
         name = sensor_name,
     )
@@ -140,13 +165,16 @@ if sensor_name == 'DepthV1':
 
 ## forward facing depth camera with reduced image size
 if sensor_name == 'DepthV2':
-    array_size = [1,36,64]
+    image_type = 2
+    camera_width = 36
+    camera_height = 64
+    array_size = [1,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0',
-        image_type = 2,
+        image_type = image_type,
         transformers_components = ['Reduce4', 'NormalizeDistance', 'DataType8'],
         name = sensor_name,
         )
@@ -159,13 +187,16 @@ if sensor_name == 'DepthV2':
 
 ## downward facing depth camera with reduced image size
 if sensor_name == 'DepthV3':
-    array_size = [1,36,64]
+    image_type = 2
+    camera_width = 36
+    camera_height = 64
+    array_size = [1,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '3',
-        image_type = 2,
+        image_type = image_type,
         transformers_components = ['Reduce4', 'NormalizeDistance', 'DataType8'],
         name = sensor_name,
         )
@@ -173,18 +204,19 @@ if sensor_name == 'DepthV3':
         'obs_type':'array',
         'state_type':'4vec',
         'array_size':array_size,
-        'notes':'downward facing depth',
+        'notes':'downward facing depth 36x64',
     }
 
-## downward facing depth camera 256x144
+## downward facing depth camera 144x256
 if sensor_name == 'DepthV4':
-    array_size = [1,144,256]
+    image_type = 2
+    array_size = [1,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '3', 
-        image_type = 2,
+        image_type = image_type,
         transformers_components = ['NormalizeDistance', 'DataType8'],
         name = sensor_name,
     )
@@ -192,18 +224,62 @@ if sensor_name == 'DepthV4':
         'obs_type':'array',
         'state_type':'4vec',
         'array_size':array_size,
-        'notes':'forward facing depth',
+        'notes':'downward facing depth 144x256',
+    }
+
+## forward facing depth camera with increased image size
+if sensor_name == 'DepthV5':
+    image_type = 2
+    camera_width = 288
+    camera_height = 512
+    array_size = [1,camera_width,camera_height]
+    data_type = np.uint8
+    from sensors.airsimcamera import AirSimCamera
+    AirSimCamera(
+        airsim_component = 'Map',
+        camera_view = '0', 
+        image_type = image_type,
+        transformers_components = ['NormalizeDistance', 'DataType8'],
+        name = sensor_name,
+    )
+    sensor_info = {
+        'obs_type':'array',
+        'state_type':'4vec',
+        'array_size':array_size,
+        'notes':'forward facing depth 288x512',
+    }
+
+## forward facing depth camera with greatly increased image size
+if sensor_name == 'DepthV6':
+    image_type = 2
+    camera_width = 576
+    camera_height = 1024
+    array_size = [1,camera_width,camera_height]
+    data_type = np.uint8
+    from sensors.airsimcamera import AirSimCamera
+    AirSimCamera(
+        airsim_component = 'Map',
+        camera_view = '0', 
+        image_type = image_type,
+        transformers_components = ['NormalizeDistance', 'DataType8'],
+        name = sensor_name,
+    )
+    sensor_info = {
+        'obs_type':'array',
+        'state_type':'4vec',
+        'array_size':array_size,
+        'notes':'forward facing depth 576x1024',
     }
 
 ## forward facing scene camera (RGB)
 if sensor_name == 'SceneV1':
-    array_size = [3,144,256]
+    array_size = [3,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0',
-        image_type = 0,
+        image_type = image_type,
         transformers_components = ['DataType8'],
         name = sensor_name,
         )
@@ -216,13 +292,13 @@ if sensor_name == 'SceneV1':
     
 ## downward facing scene camera (RGB)
 if sensor_name == 'SceneV2':
-    array_size = [3,144,256]
+    array_size = [3,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '3',
-        image_type = 0,
+        image_type = image_type,
         transformers_components = ['DataType8'],
         name = sensor_name,
         )
@@ -235,13 +311,13 @@ if sensor_name == 'SceneV2':
 
 ## forward facing scene camera (RGB) with 100% rain
 if sensor_name == 'SceneV3':
-    array_size = [3,144,256]
+    array_size = [3,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0',
-        image_type = 0,
+        image_type = image_type,
         transformers_components = ['DataType8'],
         name = sensor_name,
         )
@@ -256,13 +332,13 @@ if sensor_name == 'SceneV3':
 
 ## forward facing scene camera (RGB) with 100% snow
 if sensor_name == 'SceneV4':
-    array_size = [3,144,256]
+    array_size = [3,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0',
-        image_type = 0,
+        image_type = image_type,
         transformers_components = ['DataType8'],
         name = sensor_name,
         )
@@ -277,13 +353,13 @@ if sensor_name == 'SceneV4':
 
 ## forward facing scene camera (RGB) with 100% fog
 if sensor_name == 'SceneV5':
-    array_size = [3,144,256]
+    array_size = [3,camera_width,camera_height]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0',
-        image_type = 0,
+        image_type = image_type,
         transformers_components = ['DataType8'],
         name = sensor_name,
         )
@@ -298,13 +374,14 @@ if sensor_name == 'SceneV5':
 
 ## forward facing depth camera with reduced image size
 if sensor_name == 'SegmentationV1':
-    array_size = [3,144,256]
+    image_type = 5
+    array_size = [3,camera_width,camera_height]
     data_type = np.float64
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
         camera_view = '0',
-        image_type = 5,
+        image_type = image_type,
         transformers_components = [],
         name = sensor_name,
         )
@@ -318,9 +395,11 @@ if sensor_name == 'SegmentationV1':
 
 
 # write sensor meta data
-sensor_path = f'{observations_dir}{sensor_name}/'
-os.makedirs(sensor_path, exist_ok=True)
-write_json(sensor_info, sensor_path + 'info.json')
+sensor_dir = f'{home_dir}map_data/observations/{sensor_name}/'
+info_path = f'{sensor_dir}info.json'
+if not os.path.exists(info_path):
+    os.makedirs(sensor_dir, exist_ok=True)
+    gm.write_json(sensor_info, info_path)
 
 # **** SENSORS ****
 
@@ -342,10 +421,22 @@ AirSimMap(
     release_path = release_path,
     settings = {
         'ClockSpeed': clock_speed, # speed up, >1, or slow down, <1. For aisrim, generally don't go higher than 10 - but this is dependent on your setup
+        "CameraDefaults": {
+            "CaptureSettings": [
+                {
+                "ImageType": image_type,
+                "Width": camera_width,
+                "Height": camera_height,
+                "FOV_Degrees": 90,
+                "AutoExposureSpeed": 100,
+                "MotionBlurAmount": 0
+                }
+            ]
         },
-    setting_files = [
-        'lightweight', # see maps/airsim_settings/... for different settings
-        ],
+    },
+    setting_file_paths = [
+        f'{home_dir}map_data/airsim_settings/lightweight.json',
+    ],
     console_flags = console_flags.copy(),
     vehicle = vehicle,
     segmentation = segmentation,
@@ -372,11 +463,11 @@ AirSimDrone(
 
 
 # all components created
-speak('configuration created!')
+gm.speak('configuration created!')
 
 # connect all components in priority order
 configuration.connect_all()
-speak('all components connected.')
+gm.speak('all components connected.')
 
 
 ## **** SPECIFY POINTS TO COLLECT DATA FROM ****
@@ -421,4 +512,4 @@ configuration.disconnect_all()
 
 # wait for everything to properly disconnect
 time.sleep(60)
-progress(job_name, 'complete')
+gm.progress(job_name, 'complete')

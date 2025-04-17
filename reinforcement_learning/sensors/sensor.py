@@ -1,6 +1,6 @@
 
 from component import Component
-import global_methods as md
+import utils.global_methods as gm
 
 # abstract class used to handle sensors
 class Sensor(Component):

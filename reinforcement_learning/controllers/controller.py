@@ -1,7 +1,7 @@
 # abstract class used to handle all components
 from component import Component
 from configuration import Configuration
-import global_methods as md
+import utils.global_methods as gm
 
 class Controller(Component):
 
@@ -21,4 +21,4 @@ class Controller(Component):
 
 	def save(self, path):
 		json_dict = self._to_json()
-		md.write_json(json_dict, path)
+		gm.write_json(json_dict, path)

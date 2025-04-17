@@ -1,8 +1,7 @@
 from controllers.controller import Controller
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 import numpy as np
-import torch
 
 # simply runs an evaluation set on the given evaluation environment
 class Test(Controller):
@@ -11,8 +10,8 @@ class Test(Controller):
 	def __init__(self,
 				environment_component, # environment to run eval in
 				model_component, # used to make predictions
+				spawner_component, # used to spawn drone based on astar paths
 				results_directory,
-				num_episodes,
 				ckpt_freq=1000,
 				job_name=None,
 				 ):
@@ -55,19 +54,21 @@ class Test(Controller):
 		lengths = []
 		termination_reasons = []
 		qs = []
-		for episode_idx, episode in enumerate(range(self.num_episodes)):
+		episode_idx = 0
+		while(episode_idx < self._spawner.n_paths):
 			# step through next episode
 			success, termination_reason, q, length = self.evaluate_episode()
-			#md.speak(f'episode:{episode} goal:{success} q:{q} termination:{termination_reason}')
+			#gm.speak(f'episode:{episode} goal:{success} q:{q} termination:{termination_reason}')
 			successes.append(success)
 			lengths.append(length)
 			termination_reasons.append(termination_reason)
 			qs.append(q)
 			if episode_idx % self.ckpt_freq == 0:
-				perc_done = 100*episode_idx/self.num_episodes
-				md.speak(f'evaluation percent done: {perc_done:.2f}%')
+				perc_done = 100*episode_idx/self._spawner.n_paths
+				#gm.speak(f'evaluation percent done: {perc_done:.2f}%')
 				if self.job_name is not None: 
-					md.progress(self.job_name, f'{perc_done:.2f}%')
+					gm.progress(self.job_name, f'{perc_done:.2f}%')
+			episode_idx += 1
 		results_dic = {
 			'successes':successes,
 			'lengths':lengths,
@@ -75,6 +76,6 @@ class Test(Controller):
 			'qs':qs,
 		}
 		results_path = self.results_directory + 'evaluation.json'
-		md.write_json(results_dic, results_path)
+		gm.write_json(results_dic, results_path)
 		return results_dic
 

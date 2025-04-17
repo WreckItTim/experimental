@@ -2,7 +2,7 @@ from actors.actor import Actor
 from random import randint
 from component import _init_wrapper
 import random
-import global_methods as md
+import utils.global_methods as gm
 from gymnasium import spaces
 
 # handles discrete actions - RL returns an index specifying which action to take

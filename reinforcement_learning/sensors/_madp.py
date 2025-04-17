@@ -5,6 +5,7 @@ from observations.array import Array
 from component import _init_wrapper
 import numpy as np
 import rl_utils as _utils
+import map_data.map_methods as mm
 import os
 
 import time
@@ -112,7 +113,7 @@ class _Madp(Sensor):
 		# discretize
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw = _utils.yaw_to_idx(yaw)
+			yaw = mm.yaw_to_idx(yaw)
 		if np.isnan(self._x):
 			use_madp = False
 		else:

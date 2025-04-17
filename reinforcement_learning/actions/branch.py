@@ -1,7 +1,7 @@
 from actions.action import Action
 from component import _init_wrapper
 import math
-import global_methods as md
+import utils.global_methods as gm
 
 # coutinuouts output will select model from several branches
 class Branch(Action):

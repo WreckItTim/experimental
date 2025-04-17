@@ -1,4 +1,4 @@
-import global_methods as md
+import utils.global_methods as gm
 from configuration import Configuration
 import os
 import modules
@@ -8,16 +8,16 @@ airsim_map = 'Blocks' # name of AirSim release to load
 motion = '2d' # 2d for horizontal motion only, 3d to unlock vertical motion
 x_bounds, y_bounds, z_bounds = modules.bounds_v1(airsim_map, motion) # bounds that drone can move around map in
 data_path = '/home/tim/Dropbox/data/' # CHANGE to your path -- parent directory to read all data from
-working_directory = f'{data_path}models/navigation_airsim_blocks_dqn_2d/' # CHANGE to your path -- where to write trained model and config files to
-evaluate_at_end = True # set to true will auto evaluate on test paths after training and save to f'{working_directory}test/'
+output_dir = f'{data_path}models/navigation_airsim_blocks_dqn_2d/' # CHANGE to your path -- where to write trained model and config files to
+evaluate_at_end = True # set to true will auto evaluate on test paths after training and save to f'{output_dir}test/'
 
 # setup for run, set system vars and prepare file system
-overwrite_model = True # this will overwrite previous working_directory and start new model from scratch
-md.setup(working_directory, overwrite_model)
+overwrite_model = True # this will overwrite previous output_dir and start new model from scratch
+gm.setup(output_dir, overwrite_model)
 
 # paramount training hyper parameters
 continue_training = False # True will load saved json configuration and any previous model and replay buffer saved to file
-if os.path.exists(working_directory + 'configuration.json'):
+if os.path.exists(output_dir + 'configuration.json'):
 	continue_training = True
 total_timesteps = int(2e6) # maximum number of timesteps to train on
 	# SB3 default is 1e6, Microsoft uses 5e5
@@ -95,7 +95,7 @@ else:
 					'model', 
 					#'replay_buffer', # this can cost alot of memory so default is to not save
 					],
-		write_folder = working_directory + 'modeling/',
+		write_folder = output_dir + 'modeling/',
 		frequency = checkpoint_freq, # save every this many episodes
 		name = 'ModelingSaver',
 	)
@@ -108,7 +108,7 @@ else:
 	# 				'observations', 
 	# 				'states',
 	# 				],
-	# 	write_folder = working_directory + 'states/',
+	# 	write_folder = output_dir + 'states/',
 	# 	order = 'post',
 	# 	save_config = False,
 	# 	save_benchmarks = False,
@@ -124,20 +124,20 @@ configuration.connect_all()
 configuration.save()
 
 # WRITE CONTROLLER
-controller.save(working_directory + 'train_controller.json')
+controller.save(output_dir + 'train_controller.json')
 
 # RUN CONTROLLER
 configuration.controller.run()
 
 # clean up shop
 configuration.disconnect_all()
-md.speak('training complete!')
+gm.speak('training complete!')
 
 #  evaluate on trained model
 if evaluate_at_end:
-	md.evaulate(
-		f'{working_directory}configuration.json',
-		f'{working_directory}modeling/model_final.zip',
-		f'{working_directory}test_final/',
+	gm.evaulate(
+		f'{output_dir}configuration.json',
+		f'{output_dir}modeling/model_final.zip',
+		f'{output_dir}test_final/',
 	)
-	md.speak('testing complete!')
+	gm.speak('testing complete!')

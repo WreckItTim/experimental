@@ -2,6 +2,7 @@
 from sb3models.sb3model import SB3Model
 from stable_baselines3 import DQN as sb3DQN
 from component import _init_wrapper
+import copy
 
 class DQN(SB3Model):
 	# constructor
@@ -48,7 +49,10 @@ class DQN(SB3Model):
 			'read_weights_path',
 			'use_slim',
 			'convert_slim',
+			'policy_kwargs',
 			]}
+		if policy_kwargs is not None:
+			_model_arguments['policy_kwargs'] = copy.deepcopy(policy_kwargs)
 		_model_arguments['_init_setup_model'] = kwargs['init_setup_model']
 		self.sb3Type = sb3DQN
 		self.sb3Load = sb3DQN.load

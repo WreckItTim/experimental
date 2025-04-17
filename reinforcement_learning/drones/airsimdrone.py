@@ -1,7 +1,7 @@
 # drone launched through airsim api - requires an airsim relase map
 import setup_path # need this in same directory as python code for airsim
 import airsim
-import global_methods as md
+import utils.global_methods as gm
 from drones.drone import Drone
 from component import _init_wrapper
 import math

@@ -1,19 +1,19 @@
-import global_methods as md
+import utils.global_methods as gm
 from configuration import Configuration
 import math
 import os
 
 # v1 modules used in SmartDepth paper (similar to NaviSlim and NaviSplit)
 
-def continue_training_v1(working_directory):
+def continue_training_v1(output_dir):
 	# load configuration file and create object to save and connect components
-	read_configuration_path = working_directory + 'configuration.json'
+	read_configuration_path = output_dir + 'configuration.json'
 	configuration = Configuration.load(read_configuration_path)
 	meta = configuration.meta
 	meta['continued_training'] = True
 	# read model and/or replay buffer
 	# get highest level complete
-	modeling_dir = f'{working_directory}modeling/'
+	modeling_dir = f'{output_dir}modeling/'
 	fnames = os.listdir(modeling_dir)
 	model_path = None
 	buffer_path = f'{modeling_dir}replay_buffer.zip'
@@ -33,7 +33,7 @@ def continue_training_v1(working_directory):
 	model_component = configuration.get_component('Model')
 	model_component.read_model_path = model_path
 	model_component.read_replay_buffer_path = buffer_path
-	md.speak('continuing training...')
+	gm.speak('continuing training...')
 	return configuration
 
 def learning_v1(buffer_size, exploration_fraction, data_path, airsim_map, motion, start_level, max_level):
@@ -122,7 +122,7 @@ def environment_v1(x_bounds, y_bounds, z_bounds, data_path, airsim_map):
 		)
 
 def observations_v1(observations_path, forward_sensor, x_bounds, y_bounds, z_bounds, airsim_map, motion, nPast=4):
-	sensor_info = md.read_json(f'{observations_path}{forward_sensor}/info.json')
+	sensor_info = gm.read_json(f'{observations_path}{forward_sensor}/info.json')
 	image_bands, image_height, image_width = sensor_info['array_size']
 	# set parameters for data to fetch
 	id_name = 'alpha' # when reading in observation data, which ID key words to use

@@ -1,7 +1,6 @@
 import os
 import pickle
 import json
-import copy
 import time
 import shutil
 import pickle
@@ -9,12 +8,8 @@ import platform
 import random
 import platform
 import datetime
-import math
-import pandas as pd
 import numpy as np
 import torch as th
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 
 # global PARAMS
 global_parameters = {}
@@ -35,17 +30,17 @@ def fix_directory(directory):
 		directory += '/'
 	return directory
 # setup paths and some global params
-def setup(working_directory, overwrite_directory=False):
+def setup_output_dir(output_dir, overwrite_directory=False):
 	# set working directory
-	if overwrite_directory and os.path.exists(working_directory):
-		shutil.rmtree(working_directory)
-	os.makedirs(working_directory, exist_ok=True)
+	if overwrite_directory and os.path.exists(output_dir):
+		shutil.rmtree(output_dir)
+	os.makedirs(output_dir, exist_ok=True)
 	# make temp folder if not exists
-	#os.makedirs(f'{working_directory}temp/', exist_ok=True)
+	#os.makedirs(f'{output_dir}temp/', exist_ok=True)
 	# set operation system
 	set_global('OS', platform.system().lower())
 	# save working directory path to global_parameters to be visible by all 
-	set_global('working_directory', working_directory) # relative to repo
+	set_global('output_dir', output_dir) # relative to repo
 	# absoulte path on local computer to repo
 	set_global('absolute_path',  os.getcwd() + '/')
 
@@ -63,11 +58,11 @@ def isfloat(s):
 			return False
 	return True
 def args_to_str(args):
-    s = ''
-    for key in args:
-        s += f'{key}:{args[key]} '
-    return s
-def parse_arguments(arguments, set_global=True):
+	s = ''
+	for key in args:
+		s += f'{key}:{args[key]} '
+	return s
+def parse_arguments(arguments, set_global_arguments=True):
 	dictionary = {}
 	for keyvalue in arguments:
 		parts = keyvalue.split(':')
@@ -82,7 +77,7 @@ def parse_arguments(arguments, set_global=True):
 		elif isfloat(value):
 			value = float(value)
 		dictionary[key] = value
-		if set_global:
+		if set_global_arguments:
 			set_global(key, value)
 	return dictionary
 
@@ -92,7 +87,7 @@ def add_to_log(msg):
 	local_log.append(get_timestamp() + ': ' + msg)
 	#print_local_log()
 def print_local_log():
-	file = open(get_global('working_directory') + 'log.txt', 'w')
+	file = open(get_global('output_dir') + 'log.txt', 'w')
 	for item in local_log:
 		file.write(item + "\n")
 	file.close()
@@ -157,16 +152,20 @@ def get_timestamp():
 	)
 	return timestamp
 def to_datetime(timestamp):
-    format_string = '%Y_%m_%d_%H_%M_%S'
-    datetime_object = datetime.datetime.strptime(timestamp, format_string)
-    return datetime.datetime.timestamp(datetime_object)
+	format_string = '%Y_%m_%d_%H_%M_%S'
+	datetime_object = datetime.datetime.strptime(timestamp, format_string)
+	return datetime.datetime.timestamp(datetime_object)
 def progress(name, progress):
+	if name is None:
+		return
 	old_progress = get_global('progress')
 	set_global('progress', progress)
-	progress_dir = get_global('progress_dir')
+	progress_dir = get_global('local_dir') + 'progress/'
 	if old_progress is not None:
 		old_path = f'{progress_dir}{name} {old_progress}'
 		if os.path.exists(old_path):
 			os.remove(old_path)
 	new_path = f'{progress_dir}{name} {progress}'
+	if not os.path.exists(progress_dir):
+		os.makedirs(progress_dir)
 	pk_write('', new_path)

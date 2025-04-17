@@ -4,7 +4,7 @@ import socket
 from drones.drone import Drone
 from os import system
 from component import _init_wrapper
-import global_methods as md
+import utils.global_methods as gm
 import numpy as np
 import math
 
@@ -56,7 +56,7 @@ class Tello(Drone):
 		system('cmd /c \"netsh wlan connect _name=' + self.wifi_name + '\"')
 		x = input()
 		'''
-		ini = md.prompt('send any key when connected to Tello via WiFi...')
+		ini = gm.prompt('send any key when connected to Tello via WiFi...')
 		# open sockets to send/receive commands/stream to/from drone
 		host = ''
 		port = 9000
@@ -95,9 +95,9 @@ class Tello(Drone):
 		# convert position from m to cm
 		x, y, z = 100*x, 100*y, 100*z
 		if speed < 10 or speed > 100:
-			md.error('speed out of range for tello')
+			gm.error('speed out of range for tello')
 		#if min(abs(x), abs(y), abs(z)) < 100 or max(abs(x), abs(y), abs(z)) > 500:
-		#    md.error('position out of range for tello')
+		#    gm.error('position out of range for tello')
 		# have to move at max 500 cm increments
 		def get_step(v):
 			v2 = 0
@@ -116,7 +116,7 @@ class Tello(Drone):
 			x = np.sign(x) * max(0, np.abs(x) - 500)
 			y = np.sign(y) * max(0, np.abs(y) - 500)
 			z = np.sign(z) * max(0, np.abs(z) - 500)
-			ini = md.prompt(f'go {x2} {y2} {z2} {speed}?')
+			ini = gm.prompt(f'go {x2} {y2} {z2} {speed}?')
 			if ini == 'y':
 				self.command(f'go {x2} {y2} {z2} {speed}')
 				self._pos += np.array([x2, y2, z2], dtype=float)
@@ -130,9 +130,9 @@ class Tello(Drone):
 		position = get_position()
 		x_diff, y_diff, z_diff = point[0]-position[0], point[1]-position[1], point[2]-position[2]
 		if speed < 10 or speed > 100:
-			md.error('speed out of range for tello')
+			gm.error('speed out of range for tello')
 		if min(abs(x_diff), abs(y_diff), abs(z_diff)) < 100 or max(abs(x_diff), abs(y_diff), abs(z_diff)) > 1000:
-			md.error('position out of range for tello')
+			gm.error('position out of range for tello')
 		self.command(f'go {x_diff} {y_diff} {z_diff} {speed}')
 		self._pos = np.array([x, y, z], dtype=float)
 

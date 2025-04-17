@@ -2,7 +2,8 @@ from controllers.controller import Controller
 from component import _init_wrapper
 import numpy as np
 import math
-import global_methods as md
+import utils.global_methods as gm
+import map_data.map_methods as mm
 import os
 import time
 
@@ -36,30 +37,32 @@ class Data(Controller):
 			self.run = self.run_without_crash
 
 	def start(self):
-		md.progress(md.get_global_parameter('job_name'), f'collected 0%')
-		working_directory = md.get_global_parameter('working_directory')
+		gm.progress(gm.get_global('job_name'), f'collected 0%')
+		output_dir = gm.get_global('output_dir')
 		self._last_obs = None
 
-		self._log_path = f'{working_directory}log__{self.part_name}.json'
+		self._log_path = f'{output_dir}log__{self.part_name}.json'
 		self.read_log()
 
-		self._point_list_path = f'{working_directory}point_list__{self.part_name}.p'
+		self._point_list_path = f'{output_dir}point_list__{self.part_name}.p'
 		self.read_point_list()
 
 		if self.save_as in ['dict']:
 			# load part data dictionary (data to be collected now)
-			self._data_dict_path = f'{working_directory}data_dict__{self.part_name}.p'
+			self._data_dict_path = f'{output_dir}data_dict__{self.part_name}.p'
 			if not os.path.exists(self._data_dict_path):
 				self._log = {}
 				self._point_list = []
 			self.read_data_dict()
 
 		if self.save_as in ['list']:
-			self._data_list_path = f'{working_directory}data_list__{self.part_name}.p'
+			self._data_list_path = f'{output_dir}data_list__{self.part_name}.p'
 			self.read_data_list()
 
 	def finish(self):
 		self.write_data()
+		complete_path = gm.get_global('complete_path')
+		gm.pk_write(True, complete_path)
 
 	def get_data_point(self, point, p_idx, state):
 		# get next point
@@ -132,11 +135,11 @@ class Data(Controller):
 					'n_points':len(self._point_list),
 			})
 			if self.save_as in ['dict']:
-				md.pk_write(self._data_dict, self._data_dict_path)
+				gm.pk_write(self._data_dict, self._data_dict_path)
 			if self.save_as in ['list']:
-				md.pk_write(self._data_list, self._data_list_path)
-			md.pk_write(self._point_list, self._point_list_path)
-			md.write_json(self._log, self._log_path)
+				gm.pk_write(self._data_list, self._data_list_path)
+			gm.pk_write(self._point_list, self._point_list_path)
+			gm.write_json(self._log, self._log_path)
 		self._added_points = 0
 
 	def data_exists(self, x, y, z, yaw_idx, p_idx):
@@ -173,7 +176,7 @@ class Data(Controller):
 		self._added_points += 1
 
 	def add_log(self, entry_dict):
-		timestamp = md.get_timestamp()
+		timestamp = gm.get_timestamp()
 		#entry_dict.update({'timestamp':timestamp})
 		self._log[timestamp] = entry_dict
 
@@ -181,7 +184,7 @@ class Data(Controller):
 		x, y, z, yaw = point
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw_idx = md.yaw_to_idx(yaw)
+			yaw_idx = mm.yaw_to_idx(yaw)
 		else:
 			yaw_idx = yaw
 		return x, y, z, yaw, yaw_idx
@@ -238,12 +241,12 @@ class Data(Controller):
 	def checkpoint(self, p_idx):
 		self.write_data()
 		percent_complete = int(100 * p_idx / len(self.points))
-		md.progress(md.get_global_parameter('job_name'), f'collected {percent_complete}%')
-		md.speak(f'{percent_complete}% data collected! On point index {p_idx}')
+		gm.progress(gm.get_global('job_name'), f'collected {percent_complete}%')
+		gm.speak(f'{percent_complete}% data collected! On point index {p_idx}')
 
 	def read_data_dict(self):
 		try:
-			self._data_dict = md.pk_read(self._data_dict_path)
+			self._data_dict = gm.pk_read(self._data_dict_path)
 			#print('read data dict at', self._data_dict_path)
 			#ini = input()
 		except:
@@ -251,19 +254,19 @@ class Data(Controller):
 
 	def read_data_list(self):	
 		try:
-			self._data_list = md.pk_read(self._data_list_path)
+			self._data_list = gm.pk_read(self._data_list_path)
 		except:	
 			self._data_list = []
 
 	def read_point_list(self):	
 		try:
-			self._point_list = md.pk_read(self._point_list_path)
+			self._point_list = gm.pk_read(self._point_list_path)
 		except:	
 			self._point_list = []
 
 	def read_log(self):	
 		try:
-			self._log = md.read_json(self._log_path)
+			self._log = gm.read_json(self._log_path)
 		except:	
 			self._log = {}
 
@@ -291,9 +294,9 @@ class Data(Controller):
 					self.get_data_point(point, p_idx, state)
 					try_again = False # crash handler
 				except self._exception as e: # crash handler
-					md.speak(str(e) + ' crash caught at point index # ' + str(p_idx)) # crash handler
+					gm.speak(str(e) + ' crash caught at point index # ' + str(p_idx)) # crash handler
 					self._map.connect(from_crash=True) # crash handler
-					md.speak(str(e) + ' recovered from crash') # crash handler
+					gm.speak(str(e) + ' recovered from crash') # crash handler
 					self.add_log({
 						'entry':'crash',
 						'point':point,

@@ -1,6 +1,6 @@
 # used to handle image observations saved as np arrays
 from observations.observation import Observation
-import global_methods as md
+import utils.global_methods as gm
 import pickle
 
 class Vector(Observation):
@@ -30,4 +30,4 @@ class Vector(Observation):
 		#for name_idx, name in enumerate(self.names):
 		#	data_dict[name] = list_data[name_idx]
 		#pickle.dump()
-		#md.write_json(data_dict, path_without_ftype+'.json')
+		#gm.write_json(data_dict, path_without_ftype+'.json')
