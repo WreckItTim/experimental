@@ -64,10 +64,10 @@ for scale in version_dict:
             all_jobs.append(job)
 
 device_map = {
-    'magma':{'cuda:0':1, 'cuda:1':1, 'cpu':0}, # 24 gb VRAM, 125 gb RAM
+    'magma':{'cuda:0':0, 'cuda:1':1, 'cpu':0}, # 24 gb VRAM, 125 gb RAM
     #'hephaestus':{'cuda:0':1, 'cpu':0}, # 24 gb VRAM, 126 gb RAM
-    'ace':{'cuda:0':0, 'cuda:1':1, 'cuda:2':0, 'cpu':0}, # 11 gb VRAM, 125 gb RAM
-    #'pyro':{'cuda:0':1, 'cpu':0}, # 11 gb VRAM, 62 gb RAM
+    #'ace':{'cuda:0':0, 'cuda:1':1, 'cuda:2':0, 'cpu':0}, # 11 gb VRAM, 125 gb RAM
+    'pyro':{'cuda:0':1, 'cpu':0}, # 11 gb VRAM, 62 gb RAM
     'phoenix':{'cuda:0':1, 'cpu':0}, # 6 gb VRAM, 62 gb RAM
     'torch':{'cuda:0':1, 'cpu':0}, # 6 gb VRAM, 62 gb RAM
     #'fox':{'cuda:0':1, 'cpu':0}, # 4 gb VRAM, 15 gb RAM

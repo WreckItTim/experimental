@@ -459,9 +459,9 @@ def predict_model(model, device, X, x_preproc_func=None, x_preproc_params={},
     DL = preproc2(X, batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory,
                  x_preproc_func=x_preproc_func, x_preproc_params=x_preproc_params)
     th.set_num_threads(pytorch_threads)
-    gm.Stopwatch = gm.Stopwatch()
+    stopwatch = gm.Stopwatch()
     P = forward_predictions(model, DL, device, unprocess_func=unprocess_func, unprocess_params=unprocess_params)
-    predict_time = gm.Stopwatch.stop()
+    predict_time = stopwatch.stop()
     return P, predict_time
 
 def string_params(params):
