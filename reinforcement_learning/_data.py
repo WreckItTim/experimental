@@ -20,10 +20,10 @@ import time
 initial_locals = locals().copy()
 
 # needed params 
-airsim_map = 'null'
+map_name = 'null'
 sensor_name = 'null'
 job_name = f'null_{random.randint(0, 1_000_000)}'
-xmin, xmax, xint, ymin, ymax, yint, zmin, zmax, zint = 0, 4, 2, 0, 4, 2, -4, -4, 4 
+xmin, xmax, xint, ymin, ymax, yint, zmin, zmax, zint = 0, 4, 2, 0, 4, 2, 4, 8, 4 
 
 # default parametrs (can be overwritten by argv)
 clock_speed = 1
@@ -46,13 +46,13 @@ gm.set_global('local_dir', local_dir)
 gm.set_global('temp_dir', temp_dir)
 
 # set variable subpaths from root directories and params set above
-if airsim_map == 'Blocks':
+if map_name == 'Blocks':
     release_path = f'{maps_dir}LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh'
-if airsim_map == 'AirSimNH':
+if map_name == 'AirSimNH':
     release_path = f'{maps_dir}AirSimNH/LinuxNoEditor/AirSimNH.sh'
-rooftops_dir = f'{home_dir}map_data/rooftops/'
-rooftops_path = f'{rooftops_dir}{rooftops_version}/{airsim_map}.p' # match to map or use voxels if not available
-output_dir = f'{home_dir}map_data/observations/{sensor_name}/{airsim_map}/' # write run files to this directory
+datamap = mm.DataMap(map_name, rooftops_version)
+gm.set_global('datamap', datamap)
+output_dir = f'{home_dir}map_data/observations/{sensor_name}/{map_name}/' # write run files to this directory
 part_name = f'{id_name}_{xmin}_{xmax}_{xint}_{ymin}_{ymax}_{yint}_{zmin}_{zmax}_{zint}'
 complete_path = f'{output_dir}completed__{part_name}.p'
 gm.set_global('complete_path', complete_path)
@@ -137,8 +137,8 @@ Reduce(
 
 
 # ** SENSORS **
-camera_width = 144
-camera_height = 256
+camera_height = 144
+camera_width = 256
 image_type = 0
 
 segmentation = False
@@ -146,7 +146,7 @@ segmentation = False
 ## forward facing depth camera 144x256
 if sensor_name == 'DepthV1':
     image_type = 2
-    array_size = [1,camera_width,camera_height]
+    array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -166,9 +166,9 @@ if sensor_name == 'DepthV1':
 ## forward facing depth camera with reduced image size
 if sensor_name == 'DepthV2':
     image_type = 2
-    camera_width = 36
-    camera_height = 64
-    array_size = [1,camera_width,camera_height]
+    camera_height = 36
+    camera_width = 64
+    array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -188,9 +188,9 @@ if sensor_name == 'DepthV2':
 ## downward facing depth camera with reduced image size
 if sensor_name == 'DepthV3':
     image_type = 2
-    camera_width = 36
-    camera_height = 64
-    array_size = [1,camera_width,camera_height]
+    camera_height = 36
+    camera_width = 64
+    array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -210,7 +210,7 @@ if sensor_name == 'DepthV3':
 ## downward facing depth camera 144x256
 if sensor_name == 'DepthV4':
     image_type = 2
-    array_size = [1,camera_width,camera_height]
+    array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -230,9 +230,9 @@ if sensor_name == 'DepthV4':
 ## forward facing depth camera with increased image size
 if sensor_name == 'DepthV5':
     image_type = 2
-    camera_width = 288
-    camera_height = 512
-    array_size = [1,camera_width,camera_height]
+    camera_height = 288
+    camera_width = 512
+    array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -252,9 +252,9 @@ if sensor_name == 'DepthV5':
 ## forward facing depth camera with greatly increased image size
 if sensor_name == 'DepthV6':
     image_type = 2
-    camera_width = 576
-    camera_height = 1024
-    array_size = [1,camera_width,camera_height]
+    camera_height = 576
+    camera_width = 1024
+    array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -273,7 +273,7 @@ if sensor_name == 'DepthV6':
 
 ## forward facing scene camera (RGB)
 if sensor_name == 'SceneV1':
-    array_size = [3,camera_width,camera_height]
+    array_size = [3,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -292,7 +292,7 @@ if sensor_name == 'SceneV1':
     
 ## downward facing scene camera (RGB)
 if sensor_name == 'SceneV2':
-    array_size = [3,camera_width,camera_height]
+    array_size = [3,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -311,7 +311,7 @@ if sensor_name == 'SceneV2':
 
 ## forward facing scene camera (RGB) with 100% rain
 if sensor_name == 'SceneV3':
-    array_size = [3,camera_width,camera_height]
+    array_size = [3,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -332,7 +332,7 @@ if sensor_name == 'SceneV3':
 
 ## forward facing scene camera (RGB) with 100% snow
 if sensor_name == 'SceneV4':
-    array_size = [3,camera_width,camera_height]
+    array_size = [3,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -353,7 +353,7 @@ if sensor_name == 'SceneV4':
 
 ## forward facing scene camera (RGB) with 100% fog
 if sensor_name == 'SceneV5':
-    array_size = [3,camera_width,camera_height]
+    array_size = [3,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -375,7 +375,7 @@ if sensor_name == 'SceneV5':
 ## forward facing depth camera with reduced image size
 if sensor_name == 'SegmentationV1':
     image_type = 5
-    array_size = [3,camera_width,camera_height]
+    array_size = [3,camera_height,camera_width]
     data_type = np.float64
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
@@ -446,13 +446,6 @@ AirSimMap(
     name = 'Map',
 )
 
-# read rooftops data struct to determine z-height of nearest collidable object below or above x,y coords
-from others.rooftops import Rooftops
-rooftops = Rooftops(
-    read_path = rooftops_path,
-    name = 'Rooftops',
-)
-
 # create drone actor to move around map
 from drones.airsimdrone import AirSimDrone
 AirSimDrone(
@@ -483,10 +476,10 @@ gm.speak('all components connected.')
 x_vals = range(xmin, xmax, xint)
 y_vals = range(ymin, ymax, yint)
 z_vals = range(zmin, zmax, zint)
-# if airsim_map in ['Blocks']:
+# if map_name in ['Blocks']:
 #     x_vals = range(-120, 101, 2)
 #     y_vals = range(-140, 141, 2)
-# if airsim_map in ['AirSimNH']:
+# if map_name in ['AirSimNH']:
 #     x_vals = range(-240, 241, 2)
 #     y_vals = range(-240, 241, 2)
 yaw_vals = [i*np.pi/2 for i in range(-1, 3)]
@@ -495,11 +488,11 @@ for x in x_vals:
         for z in z_vals:
             for yaw in yaw_vals:
                 point = [x, y, z, yaw]
-                in_object = rooftops.in_object(x, y, z)
+                in_object = datamap.in_object(x, y, z)
                 if in_object: # check if point in object
                     continue
                 controller.points.append(point)
-print('n_points=', len(controller.points))
+gm.speak(f'n_points={len(controller.points)}')
 
 # write configuration to file (to be viewed or loaded later)
 #configuration.save()
@@ -511,5 +504,6 @@ configuration.controller.run()
 configuration.disconnect_all()
 
 # wait for everything to properly disconnect
-time.sleep(60)
+time.sleep(20)
 gm.progress(job_name, 'complete')
+gm.speak('completed')

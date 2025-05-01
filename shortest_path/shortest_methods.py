@@ -2,34 +2,45 @@ import utils.global_methods as gm # sys.path.append('path/to/parent/repo/')
 import map_data.map_methods as mm
 import numpy as np
 
-# takes start and target in airsim coordinates
-# calculates path in standard coordinates
-# outputs path in airsim coordinates
+# def get_astar_path(start, target, motion, airsim_map, 
+#                    rooftops_version='v1', region='all', astar_version='v1', 
+#                   max_iterations=40_000,):
+
+#     # read map bounds to search for path in
+#     x_bounds, y_bounds, z_bounds = mm.get_bounds(airsim_map, region) # region returns bounds in airsim coords
+#     bounds_min = mm.drone_to_standard(x_bounds[0], y_bounds[0], z_bounds[0], airsim_map)
+#     bounds_max = mm.drone_to_standard(x_bounds[1], y_bounds[1], z_bounds[1], airsim_map)
+#     x_bounds, y_bounds, z_bounds = [bounds_min[0], bounds_max[0]], [bounds_min[1], bounds_max[1]], [bounds_min[2], bounds_max[2]]
+
+#     # read rooftops object used to detect collisions
+#     rooftops = gm.pk_read(f'map_data/rooftops/{rooftops_version}/rooftops_standard_{airsim_map}.p')
+    
+#     # convert AirSim coordinates to standard coordinates
+#     start = mm.drone_to_standard(*start, airsim_map)
+#     target = mm.drone_to_standard(*target, airsim_map)
+    
+#     # make astar object and search 
+#     astar = Astar(rooftops, x_bounds, y_bounds, z_bounds, astar_version)
+#     path, outer_iterations, result = astar.search(np.array(start), np.array(target), motion=motion, max_iterations=max_iterations)
+#     print('astar path result:', result, '. Astar took', outer_iterations,'number of iterations to finish. Increase max_iterations if failed and you can see that a path exists.')
+    
+#     # convert standard coordinates back to stupid AirSim coordinates
+#     for point in path:
+#         point['position'] =  mm.standard_to_drone(*point['position'], airsim_map)
+#     return path, outer_iterations, result
+
 def get_astar_path(start, target, motion, airsim_map, 
                    rooftops_version='v1', region='all', astar_version='v1', 
                   max_iterations=40_000,):
-
-    # read map bounds to search for path in
-    x_bounds, y_bounds, z_bounds = mm.get_bounds(airsim_map, region) # region returns bounds in airsim coords
-    bounds_min = mm.drone_to_standard(x_bounds[0], y_bounds[0], z_bounds[0], airsim_map)
-    bounds_max = mm.drone_to_standard(x_bounds[1], y_bounds[1], z_bounds[1], airsim_map)
-    x_bounds, y_bounds, z_bounds = [bounds_min[0], bounds_max[0]], [bounds_min[1], bounds_max[1]], [bounds_min[2], bounds_max[2]]
-
+    
     # read rooftops object used to detect collisions
     rooftops = gm.pk_read(f'map_data/rooftops/{rooftops_version}/rooftops_standard_{airsim_map}.p')
-    
-    # convert AirSim coordinates to standard coordinates
-    start = mm.drone_to_standard(*start, airsim_map)
-    target = mm.drone_to_standard(*target, airsim_map)
     
     # make astar object and search 
     astar = Astar(rooftops, x_bounds, y_bounds, z_bounds, astar_version)
     path, outer_iterations, result = astar.search(np.array(start), np.array(target), motion=motion, max_iterations=max_iterations)
     print('astar path result:', result, '. Astar took', outer_iterations,'number of iterations to finish. Increase max_iterations if failed and you can see that a path exists.')
     
-    # convert standard coordinates back to stupid AirSim coordinates
-    for point in path:
-        point['position'] =  mm.standard_to_drone(*point['position'], airsim_map)
     return path, outer_iterations, result
 
 def load_paths(paths_path):
@@ -52,9 +63,8 @@ class Node:
         self.name = f'{self.position[0]}_{self.position[1]}_{self.position[2]}_{self.direction}'
     
 class Astar:
-    # rooftops is 2D grid in x,y coordinats with highest z-value cooresponding to rooftop at that point
     # roof_collision is allowed distance from above rootop before collision
-    def __init__(self, rooftops, x_bounds, y_bounds, z_bounds, astar_version='v1'):
+    def __init__(self, map_name, rooftops, x_bounds, y_bounds, z_bounds, astar_version='v1'):
 
         # get magnitudes for astar actions
         if astar_version in ['v1']:
@@ -70,13 +80,9 @@ class Astar:
             self.cost = 1
 
         # set other params
-        self.rooftops = rooftops.copy()
-        self.min_x = x_bounds[0]
-        self.max_x = x_bounds[1]
-        self.min_y = y_bounds[0]
-        self.max_y = y_bounds[1]
-        self.min_z = z_bounds[0]
-        self.max_z = z_bounds[1]
+        self.x_bounds = x_bounds.copy()
+        self.y_bounds = y_bounds.copy()
+        self.z_bounds = z_bounds.copy()
         self.max_horizontal = max(self.magnitudes_horizontal)
         self.max_vertical = max(self.magnitudes_vertical)
     
@@ -107,23 +113,32 @@ class Astar:
     
         def check_child(position, direction, check_visited=True, check_bounds=True, check_collision=True):
             name = f'{position[0]}_{position[1]}_{position[2]}_{direction}'
+            print('checking', position, direction)
             
             # check if visited already
             if check_visited and name in visited:
-                return False
+                print('ALREADY VISISTED')
+                return 
+
+            # unpack positional vars
+            x, y, z = position
 
             # check bounds
-            x, y, z = position
-            if check_bounds and (x > self.max_x or x < self.min_x or 
-                y > self.max_y or y < self.min_y or 
-                z > self.max_z or z < self.min_z
-                ):
+            if check_bounds and (x < self.x_bounds[0] or x > self.x_bounds[1] or 
+                    y < self.y_bounds[0] or y > self.y_bounds[1] or 
+                    z < self.z_bounds[0] or z > self.z_bounds[1]):
+                print('OUT OF BOUNDS')
                 return False
 
             # check collision
-            if check_collision and z - self.roof_collision <= self.rooftops[x, y]:
+            #if check_collision and mm.in_object(x, y, z, map_name, 
+            #        collision_threshold=self.roof_collision, rooftops_version=self.rooftops_version
+            #    ):
+            if check_collision and z <= self.rooftops[x][y] + self.roof_collision:
+                print('COLLISION')
                 return False
-            
+
+            print('VALID')
             return True
             
         while len(to_visit) > 0:
@@ -155,6 +170,7 @@ class Astar:
             # get current state
             current_position = current_node.position
             current_direction = current_node.direction
+            print('current', current_position, current_direction)
 
             # child node for rotating right
             proposed_direction = current_direction + 1

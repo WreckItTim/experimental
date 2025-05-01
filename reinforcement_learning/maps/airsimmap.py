@@ -14,7 +14,6 @@ from matplotlib import pyplot as plt
 # handles airsim release executables
 class AirSimMap(Map):
 
-	# weather was Zixia Xia's contribution
 	# weather_type values:
 		# Normal (sunny): -1,
 		# Rain: 0,
@@ -28,8 +27,6 @@ class AirSimMap(Map):
 	# constructor, pass in a dictionary for settings and/or file paths to merge multiple settings .json files
 	@_init_wrapper
 	def __init__(self,
-					# tells the height of collidable objects
-					rooftops_component=None,
 					# voxels for 2d/3d numpy array represtation of objects
 					voxels_component=None,
 					# path to release (.sh/.exe) file to be launched
@@ -81,18 +78,6 @@ class AirSimMap(Map):
 			else:
 				gm.set_global('ApiServerPort', 41451)
 			# pipeline to open for console output
-
-	def in_object(self, x, y, z):
-		if self._rooftops is not None:
-			return self._rooftops.in_object(x, y, z)
-		return False
-
-	# will get lowest z-point without being inside object at given x,y
-	# this includes the floor (which will be lowest point found)
-	def get_roof(self, x, y):
-		if self._rooftops is not None:
-			return self._rooftops.get_roof(x, y)
-		return 0
 
 	def make_voxels(self,
 			  # ABSOLUTE path to write to, must be absolute

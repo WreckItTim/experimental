@@ -70,9 +70,7 @@ class Data(Controller):
 
 		# data point exists yet?
 		if self.data_exists(x, y, z, yaw_idx, p_idx):
-			#print('data exists at', x, y, z, yaw_idx, p_idx)
 			return
-		#print('data does not exist at', x, y, z, yaw_idx, p_idx)
 
 		# make sensor observation at desired location
 		data, x_drone, y_drone, z_drone, yaw_drone = self.observe(x, y, z, yaw, p_idx, state)
@@ -138,17 +136,13 @@ class Data(Controller):
 				gm.pk_write(self._data_dict, self._data_dict_path)
 			if self.save_as in ['list']:
 				gm.pk_write(self._data_list, self._data_list_path)
-			gm.pk_write(self._point_list, self._point_list_path)
-			gm.write_json(self._log, self._log_path)
+			#gm.pk_write(self._point_list, self._point_list_path)
+			#gm.write_json(self._log, self._log_path)
 		self._added_points = 0
 
 	def data_exists(self, x, y, z, yaw_idx, p_idx):
 		if self.save_as in ['dict']:
-			try:
-				_ = self._data_dict[x][y][z][yaw_idx]
-				return True
-			except:
-				return False
+			return x in self._data_dict and y in self._data_dict[x] and z in self._data_dict[x][y] and yaw_idx in self._data_dict[x][y][z]
 		if self.save_as in ['list']:
 			return p_idx < len(self._data_list)
 
@@ -247,8 +241,6 @@ class Data(Controller):
 	def read_data_dict(self):
 		try:
 			self._data_dict = gm.pk_read(self._data_dict_path)
-			#print('read data dict at', self._data_dict_path)
-			#ini = input()
 		except:
 			self._data_dict = {}
 

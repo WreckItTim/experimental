@@ -66,7 +66,7 @@ class Levels(Spawner):
 			end_idx = int(n_paths*end_perc)-1 if end_perc < 1 else n_paths
 		# place path idxs into bins based on level and sublevel
 		self._path_bins = {}
-		self.n_paths = 0 # keep track of paths we keep to sample from
+		self._n_paths = 0 # keep track of paths we keep to sample from
 		for path_idx in range(start_idx, end_idx):
 			level = self._levels[path_idx]
 			if level < self.min_level or level > self.max_level:
@@ -77,9 +77,9 @@ class Levels(Spawner):
 			if sublevel not in self._path_bins[level]:
 				self._path_bins[level][sublevel] = []
 			self._path_bins[level][sublevel].append(path_idx)
-			self.n_paths += 1
-		self.avail_levels = list(self._path_bins.keys())
-		print('LEVELS', 'split name', self.split_name, 'nPaths', self.n_paths)
+			self._n_paths += 1
+		self._avail_levels = list(self._path_bins.keys())
+		print('LEVELS', 'split name', self.split_name, 'nPaths', self._n_paths)
 
 	def set_level(self, level):
 		if level >= self.min_level and level <= self.max_level:
@@ -100,7 +100,7 @@ class Levels(Spawner):
 			if die_roll <= self.level_proba:
 				level = self.level
 			else:
-				level = random.choice(self.avail_levels)
+				level = random.choice(self._avail_levels)
 			# randomize what sublevel we sample from
 			sublevels = list(self._path_bins[level].keys())
 			sublevel = random.choice(sublevels)
@@ -108,7 +108,7 @@ class Levels(Spawner):
 			path_idx = random.choice(self._path_bins[level][sublevel])
 		else:
 			# get next path in static rotating list
-			self.rotating_idx = self.rotating_idx+1 if self.rotating_idx+1 < self.n_paths else 0  
+			self.rotating_idx = self.rotating_idx+1 if self.rotating_idx+1 < self._n_paths else 0  
 			path_idx = self.rotating_idx
 		
 		self._path_idx = path_idx	

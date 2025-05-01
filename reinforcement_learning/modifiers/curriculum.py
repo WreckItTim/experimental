@@ -20,7 +20,7 @@ class Curriculum(Modifier):
 				level = None, # current level in curric learning, if None then will start at min_level
 				update_progress = False, # write progress to file (given global progress_path)
 				# specific parameters for how we track curriculum learning
-				reached_max = False, # we have leveled up to the maximum level if True
+				reached_max = True, # we have leveled up to the maximum level if True
 				terminate_on_max = False, # when reach max level, stop learning?
 				eval_frequencies = {}, # evalute the given path_split at split_name every these many episodes
 											# key names correspond to spawner.path_splits
@@ -46,8 +46,7 @@ class Curriculum(Modifier):
 				early_criteria = 0.8, # wait till accuracy hits this much before check for early stopping
 				early_start = False, # this is controlled inside of learning keep at False unless you do not want a burn in period
 				patience = 10, # number of epochs to wait before triggering early stopping
-				epsilon = 0.01, # min improvement required inbetween epochs to reset wait counter
-				wait = 0, # counter to keep track of number of epoch that have not improved by epsilon
+				wait = 0, # counter to keep track of number of epoch that have not improved
 				best_accuracy = 0, # keep track of the best accuracy for comparing improvements and logging models
 			): 
 		super().__init__(base_component, parent_method, order, frequency, counter)
@@ -58,6 +57,7 @@ class Curriculum(Modifier):
 	def connect(self, state=None):
 		super().connect(state)
 		self._job_name = gm.get_global('job_name')
+		self._stopwatch = gm.Stopwatch()
 
 	def disconnect(self, state=None):
 		super().disconnect(state)
@@ -77,14 +77,12 @@ class Curriculum(Modifier):
 	# modifier activate()	
 	def activate(self, state):
 		if self.check_counter(state): # super Modifier class call (do we check level up?)
-			if self.counter <= 1:
-				self._stopwatch = gm.Stopwatch()
 			# run external evaluation script?
 			output_str = f'episodes-{self.counter}'
 			evald = False
 			stopwatch = gm.Stopwatch()
 			for split_name in self.eval_frequencies:
-				if self.counter%self.eval_frequencies[split_name] == 0:
+				if self.counter%self.eval_frequencies[split_name] == 0 or self.counter == 0:
 					evald = True
 					min_level = self.min_level
 					if split_name in self.eval_use_current_as_min_level and self.eval_use_current_as_min_level[split_name]:
@@ -97,6 +95,9 @@ class Curriculum(Modifier):
 						self.eval_accuracies[split_name] = []
 					self.eval_accuracies[split_name].append(accuracy)
 					output_str += f' {split_name}-{100*accuracy:0.2f}%'
+					# write progress to file?
+					if self.update_progress and split_name in ['train', 'test']:
+						self.progress()
 			if evald:
 				eval_time = stopwatch.stop()
 				train_time = self._stopwatch.stop() - eval_time
@@ -111,9 +112,6 @@ class Curriculum(Modifier):
 				self.level_up()
 				if self.reached_max and self.terminate_on_max:
 					self.terminate_learning()
-			# write progress to file?
-			if self.update_progress:
-				self.progress()
 
 	# stop all learning algorithm processes / stops controller 
 	def terminate_learning(self):
@@ -124,6 +122,7 @@ class Curriculum(Modifier):
 		for split_name in self.eval_accuracies:
 			last_accuracy = self.eval_accuracies[split_name][-1]
 			progress_string += f' {split_name} {last_accuracy:.2f}'
+		gm.speak(progress_string)
 		gm.progress(self._job_name, progress_string)
 
 	def eval_accuracy(self, test_name, model_name, min_level, max_level, split_name):
@@ -138,6 +137,7 @@ class Curriculum(Modifier):
 			'min_level':min_level,
 			'max_level':max_level,
 			'split_name':split_name,
+			'save_states':False,
 		})
 		return accuracy
 
@@ -187,7 +187,7 @@ class Curriculum(Modifier):
 					self.early_start = True
 					self.best_accuracy = last_accuracy
 			else:
-				if last_accuracy > self.best_accuracy + self.epsilon:
+				if last_accuracy > self.best_accuracy:
 					self.best_accuracy = last_accuracy
 					self.wait = 0
 					self.save_model('model_best')

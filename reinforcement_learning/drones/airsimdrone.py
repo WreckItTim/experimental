@@ -62,6 +62,10 @@ class AirSimDrone(Drone):
 	
 	# NEW: move to relative position with given speed
 	def move(self, x_rel, y_rel, z_rel, speed=2, stabelize=True):
+		temp = x_rel
+		x_rel = y_rel
+		y_rel = temp
+		z_rel = -1 * z_rel
 
 		# get current position then move relative
 		current_position = self.get_position()
@@ -78,10 +82,11 @@ class AirSimDrone(Drone):
 
 	# teleports to position, yaw in radians
 	def teleport(self, x, y, z, yaw, ignore_collision=True, stabelize=True):
-		# while yaw > math.pi:
-		# 	yaw -= 2*math.pi
-		# while yaw <= -1*math.pi:
-		# 	yaw += 2*math.pi
+		temp = x
+		x = y
+		y = temp
+		z = -1 * z
+
 		pose = airsim.Pose(
 			airsim.Vector3r(x, y, z), 
 			airsim.to_quaternion(0, 0, yaw)
@@ -99,10 +104,12 @@ class AirSimDrone(Drone):
 		self._airsim._client.rotateToYawAsync(math.degrees(target_yaw), timeout_sec = self._timeout).join()
 		#self._airsim._client.rotateByYawRateAsync(yaw_deg, 4).join()
 
-	# get (x, y, z) positon, z is negative for up, x is positive for forward, y is positive for right (from origin)
 	def get_position(self):
 		pos = self._airsim._client.getMultirotorState().kinematics_estimated.position
-		return [pos.x_val, pos.y_val, pos.z_val]
+		x = pos.y_val
+		y = pos.x_val
+		z = -1 * pos.z_val
+		return [x, y, z]
 
 	# get rotation about the z-axis (yaw), returns in radians between -pi to +pi
 	def get_yaw(self):

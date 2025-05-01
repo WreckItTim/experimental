@@ -10,6 +10,10 @@ import platform
 import datetime
 import numpy as np
 import torch as th
+import psutil
+
+def check_ram(msg=''):
+    print(f'{msg} {psutil.virtual_memory().used*1e-9:0.4f} gb')
 
 # global PARAMS
 global_parameters = {}
@@ -68,6 +72,7 @@ def parse_arguments(arguments, set_global_arguments=True):
 		parts = keyvalue.split(':')
 		key = parts[0]
 		value = ':'.join(parts[1:])
+		print(key, value)
 		if value in ['True']:
 			value = True
 		elif value in ['False']:

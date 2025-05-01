@@ -1,13 +1,15 @@
 from sklearn.metrics import r2_score as r2_score_flat
-from torch.utils.data import Dataset, DataLoader
-from torch import nn
-from functools import partial
 import multiprocessing as mp
 from IPython.display import clear_output
-from utils.global_methods import * # sys.path.append('path/to/parent/repo/') from parent code
+import utils.global_methods as gm # sys.path.append('path/to/parent/repo/') from parent code
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import torch as th
+from torch.utils.data import Dataset, DataLoader
+from torch import nn
+import random
 
 print('cpu count:', os.cpu_count())
 print('gpu count:', th.cuda.device_count())
@@ -186,11 +188,11 @@ def forward_predictions(model, DL, device, mem_optim=True, DL_includes_y=False,
             del x, p # clear mem from gpu
     return np.vstack(P)
 # train neural network model
-def train(model, DL_train, DL_val=None,
+def train(model_func, model_params, optimizier_func, optimizer_params, DL_train, DL_val=None,
           device='cpu', criterion=nn.MSELoss(), minimize_error=True,
-          patience=10, max_epochs=10_000, augmentors=None, show_curve=True, show_curve_freq=1,
-          pytorch_threads=1, checkpoint_freq=0, run_path=None, output_progress=True,
-          forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},
+          patience=10, max_epochs=10_000, augmentors=None, show_curve_freq=1, continue_training=False,
+          pytorch_threads=1, checkpoint_freq=0, run_path=None, output_progress=True, print_progress=True,
+          forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={}, 
          ):
     def _forward_train(DL):
         if augmentors is not None:
@@ -211,55 +213,87 @@ def train(model, DL_train, DL_val=None,
         return mean_loss
 
     th.set_num_threads(pytorch_threads)
-    best_weights = copy.deepcopy(model.state_dict())
-    wait = 0
-    train_errors = [_forward_val(DL_train)]
-    val_errors = None
-    if DL_val is not None:
-        val_errors = [_forward_val(DL_val)]
-        best_error = val_errors[0]
-    train_times = []
     error_multiplier = 1 if minimize_error else -1
-    for epoch in range(max_epochs):
-        if show_curve and epoch % show_curve_freq == 0:
-            clear_output()
-            plt.plot(train_errors, label='train')
-            if val_errors is not None:
-                plt.plot(val_errors, label='val')
-            plt.legend()
-            plt.xlabel('Epoch')
-            plt.ylabel('Loss')
-            plt.show()
-        sw = Stopwatch()
-        train_error = _forward_train(DL_train)
-        train_errors.append(train_error)
+
+    # make model and other init vars
+    renew = not continue_training
+    if continue_training:
+        try:
+            model = th.load(run_path+'model_ckpt.pt')
+            model.to(device)
+            best_weights = gm.pk_read(run_path+'best_weigths_ckpt.p')
+            wait = gm.pk_read(run_path+'wait_ckpt.p')
+            best_error = gm.pk_read(run_path+'best_error_ckpt.p')
+            start_epoch = gm.pk_read(run_path+'epoch_ckpt.p')
+            train_times = gm.pk_read(run_path+'train_times_ckpt.p')
+            train_errors = gm.pk_read(run_path+'train_errors_ckpt.p')
+            val_errors = gm.pk_read(run_path+'val_errors_ckpt.p')
+        except:
+            renew = True
+    if renew:
+        model = model_func(**model_params)
+        model.to(device)
+        best_weights = copy.deepcopy(model.state_dict())
+        wait = 0
+        start_epoch = 1
+        train_errors = [_forward_val(DL_train)]
+        val_errors = None
         if DL_val is not None:
-            val_error = _forward_val(DL_val)
-            val_errors.append(val_error)
-            if error_multiplier*val_error < error_multiplier*best_error:
-                best_error = val_error
-                best_weights = copy.deepcopy(model.state_dict())
-                wait = 0
-            else:
-                wait += 1
-        epoch_time = sw.stop()
-        train_times.append(epoch_time)
-        print(epoch, train_error, val_error, epoch_time)
-        if wait > patience:
-            break
-        if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
-            th.save(model, run_path+'model_ckpt.pt')
-            pk.dump(train_errors, open(run_path+'train_errors_ckpt.p', 'wb'))
-            pk.dump(val_errors, open(run_path+'val_errors_ckpt.p', 'wb'))
-        if output_progress:
-            progress(get_global('job_name'), f'epoch {epoch} loss {round(val_error,4)} time {round(epoch_time,2)}')
+            val_errors = [_forward_val(DL_val)]
+            best_error = val_errors[0]
+        train_times = []
+    # make optimizer
+    optimizer_params['params'] = model.parameters()
+    model.optimizer = optimizier_func(**optimizer_params)
+    # training loop
+    if start_epoch < max_epochs:
+        for epoch in range(start_epoch, max_epochs+1):
+            if wait > patience:
+                break
+            if show_curve_freq > 0 and epoch % show_curve_freq == 0:
+                clear_output()
+                plt.plot(train_errors, label='train')
+                if val_errors is not None:
+                    plt.plot(val_errors, label='val')
+                plt.legend()
+                plt.xlabel('Epoch')
+                plt.ylabel('Loss')
+                plt.show()
+            sw = gm.Stopwatch()
+            train_error = _forward_train(DL_train)
+            train_errors.append(train_error)
+            if DL_val is not None:
+                val_error = _forward_val(DL_val)
+                val_errors.append(val_error)
+                if error_multiplier*val_error < error_multiplier*best_error:
+                    best_error = val_error
+                    best_weights = copy.deepcopy(model.state_dict())
+                    wait = 0
+                else:
+                    wait += 1
+            epoch_time = sw.stop()
+            train_times.append(epoch_time)
+            progress_str = f'epoch {epoch} loss {round(val_error,4)} time {round(epoch_time,2)}'
+            if print_progress:
+               print(progress_str)
+            if output_progress:
+                gm.progress(gm.get_global('job_name'), progress_str)
+            if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
+                th.save(model, run_path+'model_ckpt.pt')
+                gm.pk_write(best_weights, run_path+'best_weigths_ckpt.p')
+                gm.pk_write(wait, run_path+'wait_ckpt.p',)
+                gm.pk_write(best_error, run_path+'best_error_ckpt.p')
+                gm.pk_write(epoch, run_path+'epoch_ckpt.p')
+                gm.pk_write(train_times, run_path+'train_times_ckpt.p')
+                gm.pk_write(train_errors, run_path+'train_errors_ckpt.p')
+                gm.pk_write(val_errors, run_path+'val_errors_ckpt.p')
     model.load_state_dict(best_weights)
     return model, train_errors, val_errors, train_times
 
 def get_test_predictions(model, DL, device, sample_size=0, test_dropout=False, augmentors=None):
     # get test predictions
     test_times = []
-    sw = Stopwatch() 
+    sw = gm.Stopwatch() 
     model.eval()
     p_test = forward_predictions(model, DL, device)
     test_times.append(sw.stop())
@@ -270,7 +304,7 @@ def get_test_predictions(model, DL, device, sample_size=0, test_dropout=False, a
         ps_shape = [sample_size] + list(DL.dataset.Y.shape)
         ps_test = np.zeros(ps_shape, dtype=DL.dataset.Y.dtype)
         for l in range(sample_size):
-            sw = Stopwatch() 
+            sw = gm.Stopwatch() 
             model.eval()
             if test_dropout:
                 for m in model.modules():
@@ -386,9 +420,10 @@ def one_shot(model_func, model_params, run_path, X_train, Y_train, X_val=None, Y
              optimizier_func=th.optim.Adam, optimizer_params={}, minimize_error=True,
              criterion=nn.MSELoss(), patience=10, max_epochs=1_000, 
              augmentors=None, sample_size=None, device='cpu', batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False,
-             checkpoint_freq=0, random_seed=42, show_curve=True, show_curve_freq=1,
+             checkpoint_freq=0, random_seed=42, show_curve_freq=1, continue_training=False,
              x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={},
-             forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},
+             forward_train_func=forward_train, forward_train_extra_params={}, 
+             forward_val_func=forward_val, forward_val_extra_params={},
             ):
     # set random seeds for replicability
     random.seed(random_seed)
@@ -406,19 +441,12 @@ def one_shot(model_func, model_params, run_path, X_train, Y_train, X_val=None, Y
                        batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory,
                       sample_size=sample_size, x_preproc_func=x_preproc_func, x_preproc_params=x_preproc_params, 
                                                 y_preproc_func=y_preproc_func, y_preproc_params=y_preproc_params,)
-    
-    # make model
-    model = model_func(**model_params)
-    model.to(device)
-
-    # make optimizer
-    optimizer_params['params'] = model.parameters()
-    model.optimizer = optimizier_func(**optimizer_params)
 
     # train model
-    model, train_errors, val_errors, train_times = train(model=model, DL_train=DL_train, DL_val=DL_val, 
-        device=device, criterion=criterion, minimize_error=minimize_error, 
-        patience=patience, max_epochs=max_epochs, augmentors=augmentors, show_curve=show_curve, show_curve_freq=show_curve_freq,
+    model, train_errors, val_errors, train_times = train(model_func=model_func, model_params=model_params,
+        optimizier_func=optimizier_func, optimizer_params=optimizer_params, DL_train=DL_train, DL_val=DL_val, 
+        device=device, criterion=criterion, minimize_error=minimize_error, patience=patience, 
+        max_epochs=max_epochs, augmentors=augmentors, show_curve_freq=show_curve_freq, continue_training=continue_training,
         pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path, 
         forward_train_func=forward_train_func, forward_train_extra_params=forward_train_extra_params, 
         forward_val_func=forward_val_func, forward_val_extra_params=forward_val_extra_params,)
@@ -431,9 +459,9 @@ def predict_model(model, device, X, x_preproc_func=None, x_preproc_params={},
     DL = preproc2(X, batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory,
                  x_preproc_func=x_preproc_func, x_preproc_params=x_preproc_params)
     th.set_num_threads(pytorch_threads)
-    stopwatch = Stopwatch()
+    gm.Stopwatch = gm.Stopwatch()
     P = forward_predictions(model, DL, device, unprocess_func=unprocess_func, unprocess_params=unprocess_params)
-    predict_time = stopwatch.stop()
+    predict_time = gm.Stopwatch.stop()
     return P, predict_time
 
 def string_params(params):
@@ -484,34 +512,34 @@ class Trainer:
         curves, idxs, logs, models = {}, {}, {}, {}
         for run_name in run_names:
             run_path = self.runs_path + run_name + '/'
-            curves[run_name] = pk.load(open(run_path + 'curve_' + str(fold) + '_.p', 'rb'))
-            idxs[run_name] = pk.load(open(run_path + 'idx_' + str(fold) + '_.p', 'rb'))
+            curves[run_name] = gm.pk_read(run_path + 'curve_' + str(fold) + '_.p')
+            idxs[run_name] = gm.pk_read(run_path + 'idx_' + str(fold) + '_.p')
             logs[run_name] = pd.read_csv(run_path + 'log.csv').iloc[0].to_dict()
             if include_model:
                 models[run_name] = th.load(run_path + 'model_' + str(fold) + '_.pt')
-        pk.dump(curves, open(self.experiment_path + 'curves.p', 'wb'))
-        pk.dump(idxs, open(self.experiment_path + 'idxs.p', 'wb'))
-        pk.dump(logs, open(self.experiment_path + 'logs.p', 'wb'))
+        gm.pk_write(curves, self.experiment_path + 'curves.p')
+        gm.pk_write(idxs, self.experiment_path + 'idxs.p')
+        gm.pk_write(logs, self.experiment_path + 'logs.p')
         if include_model:
-            pk.dump(models, open(self.experiment_path + 'models.p', 'wb'))
+            gm.pk_write(models, self.experiment_path + 'models.p')
         
     def combine_predictions(self):
         run_names = [file_name.split('.')[0] for file_name in os.listdir(self.predictions_path) if file_name[0] != '.']
         predictions = {}
         for run_name in run_names:
             prediction_path = self.predictions_path + run_name + '.p'
-            Ps = pk.load(open(prediction_path, 'rb'))
+            Ps = gm.pk_read(prediction_path)
             predictions[run_name] = Ps
-        pk.dump(predictions, open(self.experiment_path + 'predictions.p', 'wb'))
+        gm.pk_write(predictions, self.experiment_path + 'predictions.p')
         
     def combine_benchmarks(self):
         run_names = [file_name.split('.')[0] for file_name in os.listdir(self.benchmarks_path) if file_name[0] != '.']
         benchmarks = {}
         for run_name in run_names:
             benchmark_path = self.benchmarks_path + run_name + '.p'
-            benchmark = pk.load(open(benchmark_path, 'rb'))
+            benchmark = gm.pk_read(benchmark_path)
             benchmarks[run_name] = benchmark
-        pk.dump(benchmarks, open(self.experiment_path + 'benchmarks.p', 'wb'))
+        gm.pk_write(benchmarks, self.experiment_path + 'benchmarks.p')
             
     def purge_errors(self, from_func='all'):
         error_names = [file_name for file_name in os.listdir(self.errors_path) if file_name[0] != '.']
@@ -600,7 +628,7 @@ class Trainer:
             multiprocess_ID = int(mp.current_process().name.split('-')[1]) % n_gpus
             device = 'cuda:' + str(multiprocess_ID)
             
-        idxs = pk.load(open(idx_path, 'rb'))
+        idxs = gm.pk_read(idx_path)
         model = th.load(model_path, map_location=device)
 
         Ps = {}
@@ -616,7 +644,7 @@ class Trainer:
                 P = self.unprocess_func(P, **self.unprocess_params)
             Ps[s] = P
             
-        pk.dump(Ps, open(prediction_path, 'wb'))
+        gm.pk_write(Ps, prediction_path)
 
     def benchmark_job(self, run_name, err_funcs, fold=0, device='cpu', multi_process_gpu=False, n_gpus=4, b_val=True,):
         prediction_path = self.predictions_path + run_name + '.p'
@@ -632,8 +660,8 @@ class Trainer:
             multiprocess_ID = int(mp.current_process().name.split('-')[1]) % n_gpus
             device = 'cuda:' + str(multiprocess_ID)
         
-        P = pk.load(open(prediction_path, 'rb'))
-        idxs = pk.load(open(idx_path, 'rb'))
+        P = gm.pk_read(prediction_path)
+        idxs = gm.pk_read(idx_path)
 
         benchmarks = {err_name:{} for err_name in err_funcs}
         for s in P:
@@ -645,7 +673,7 @@ class Trainer:
             for err_name in err_funcs:
                 benchmarks[err_name][s] = err_funcs[err_name](y, p)
 
-        pk.dump(benchmarks, open(benchmark_path, 'wb'))
+        gm.pk_write(benchmarks, benchmark_path)
     
     def lightweight_job(self, run_name, delete_model=True, force_overwrite=False, fold=0, 
                         cross_validation_params={}, prediction_params={}, benchmark_params={}, ):
@@ -689,7 +717,7 @@ class Trainer:
             return
     
         # run cross validation
-        sw = Stopwatch()
+        sw = gm.Stopwatch()
         outputs = [one_fold(
             model_func, model_params, self.X, self.Y, self.X, self.Y,
             optimizier_func, optimizer_params, minimize_error,
@@ -727,8 +755,8 @@ class Trainer:
 
             if save_all:
                 th.save(model, run_path + 'model_' + str(i) + '_.pt')
-                pk.dump(idx, open(run_path + 'idx_' + str(i) + '_.p', 'wb'))
-                pk.dump(curve, open(run_path + 'curve_' + str(i) + '_.p', 'wb'))
+                gm.pk_read(idx, run_path + 'idx_' + str(i) + '_.p')
+                gm.pk_read(curve, run_path + 'curve_' + str(i) + '_.p')
 
         # end cross validation
         learn_time = sw.stop()

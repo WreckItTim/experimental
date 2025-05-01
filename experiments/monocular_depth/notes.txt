@@ -1,0 +1,7 @@
+scale=1/8 model=DVGLNet vram=1.2gb ram=40gb
+scale=1/4 model=DGNLNet vram=1.2gb ram=40gb
+scale=1/2 model=DGNLNet vram=1.5gb ram=40gb
+scale=1 model=DGNLNet vram=1.9gb ram=40gb
+scale=2 model=DGNLNet vram=2.9gb ram=40gb
+scale=4 model=DGNLNet vram=5.2gb ram=40gb
+scale=8 model=DGNLNet vram=10.7gb ram=40gb

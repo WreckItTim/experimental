@@ -55,7 +55,7 @@ class Test(Controller):
 		termination_reasons = []
 		qs = []
 		episode_idx = 0
-		while(episode_idx < self._spawner.n_paths):
+		while(episode_idx < self._spawner._n_paths):
 			# step through next episode
 			success, termination_reason, q, length = self.evaluate_episode()
 			#gm.speak(f'episode:{episode} goal:{success} q:{q} termination:{termination_reason}')
@@ -64,7 +64,7 @@ class Test(Controller):
 			termination_reasons.append(termination_reason)
 			qs.append(q)
 			if episode_idx % self.ckpt_freq == 0:
-				perc_done = 100*episode_idx/self._spawner.n_paths
+				perc_done = 100*episode_idx/self._spawner._n_paths
 				#gm.speak(f'evaluation percent done: {perc_done:.2f}%')
 				if self.job_name is not None: 
 					gm.progress(self.job_name, f'{perc_done:.2f}%')

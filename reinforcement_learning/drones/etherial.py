@@ -44,10 +44,6 @@ class Etherial(Drone):
 			current_pos = np.array(self.get_position()).astype(float)
 			displacement = np.array([x, y, z]) - current_pos
 			distance = np.linalg.norm(displacement)
-			if distance % 1 != 0:
-				gm.speak('NEGATIVE MOVEMENT')
-				gm.progress('NEGATIVE MOVEMENT', 'uh oh')
-				ini = input()
 			if distance > step_length:
 				n_steps = int(distance / step_length)
 				step_vector = step_length * displacement / distance

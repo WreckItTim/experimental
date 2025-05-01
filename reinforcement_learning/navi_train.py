@@ -37,7 +37,7 @@ region = 'all'
 map_resolution_x, map_resolution_y, map_resolution_z = 2, 2, 4
 
 # observation space
-sensor_name = 'DepthV2' # forward sensor to use as input to navigation model
+sensor_name = 'DepthV1' # forward sensor to use as input to navigation model
 nPast = 4
 id_name = 'alpha' # when reading in observation data, which ID key words to use
 
@@ -69,7 +69,7 @@ astar_multiplier = 2 # determines max length of an episode
 # levels spawner
 astar_name = 'all' # 46812 paths
 astar_version = 'v1' 
-level_proba = 1.0
+level_proba = 0.7
 split_name = 'train'
 split_train_start = 0
 split_train_end = 0.6
@@ -81,31 +81,32 @@ split_test_end = 1
 # curriculum learning
 min_level, max_level = 0, 7 # index range of path difficulties to train and evaluate on, inclusive
 early_freq = 10_000
-early_criteria = 0.8
-eval_train_freq = 40_000
-eval_test_freq = 40_000
+early_criteria = 0.4
+eval_train_freq = 0
+eval_test_freq = 50_000
 eval_train_use_current_as_min_level = False
-eval_val_use_current_as_min_level = True
+eval_val_use_current_as_min_level = False
 eval_test_use_current_as_min_level = False
 eval_train_use_current_as_max_level = False
 eval_val_use_current_as_max_level = True
 eval_test_use_current_as_max_level = False
+patience = 20 # number of epochs to wait before triggering early stopping
 
 # DQN policy
 net_arch_nodes = 64
 net_arch_layers = 2
 feature_extractor_scale = 1
 feature_extractor_dim = 256
-total_policy_scale = 1
+total_policy_scale = 2
 device = 'cuda:0'
 
 # learning algorithm
-total_timesteps = int(1e7) # maximum number of timesteps to train on
+total_timesteps = 100_000_000 # maximum number of timesteps to train on
     # SB3 default is 1e6, Microsoft uses 5e5
-buffer_size = int(1e5) # number of recent steps (observation, action, reward) tuples to store in memory to train on -- takes up memory
+buffer_size = 80_000 # number of recent steps (observation, action, reward) tuples to store in memory to train on -- takes up memory
     # ^^ SB3 default is 1e6, Microsoft uses 5e5, I typically have to use less because of memory constraints
 #exploration_fraction =  0.1
-stop_annealing = int(4e4) # number of steps to stop annealing the exploration rate at
+stop_annealing = 40_000 # number of steps to stop annealing the exploration rate at
     
 
 # read params from command line
@@ -147,6 +148,9 @@ x_vals = [x for x in range(x_bounds[0], x_bounds[1]+1, map_resolution_x)]
 y_vals = [y for y in range(y_bounds[0], y_bounds[1]+1, map_resolution_y)]
 z_vals = [z for z in range(z_bounds[0], z_bounds[1]+1, map_resolution_z)]
 yaw_vals = [0, 1, 2, 3] # what yaws are accessible by drone
+gm.set_global('x_bounds', x_bounds)
+gm.set_global('y_bounds', y_bounds)
+gm.set_global('z_bounds', z_bounds)
 
 # how astar paths are split into sets and evaluated
 eval_val_freq = early_freq
@@ -179,7 +183,7 @@ exploration_fraction = stop_annealing / total_timesteps
 all_local_vars = locals()
 user_local_vars = {k:v for k, v in all_local_vars.items() if (not k.startswith('__') and k not in initial_locals and k not in ['initial_locals','all_local_vars'])}
 config_params = user_local_vars.copy() # will include all of the above parameters to config parameters written to file
-
+print('running job with params', config_params)
 
 # COMPONENTS
 
@@ -193,11 +197,14 @@ controller = Train(
     )
 
 # continue training will load runs folder and pick up where it left off
-if continue_training:
-    # load configuration file and create object to save and connect components
-    if contine_config_at is None:
-        contine_config_at = output_dir + 'configuration.json'
+# load configuration file and create object to save and connect components
+if contine_config_at is None:
+    contine_config_at = output_dir + 'configuration.json'
+if continue_training and os.path.exists(contine_config_at):
     configuration = Configuration.load(contine_config_at, controller)
+    configuration.set_controller(controller)
+    for key in config_params:
+        configuration.set_parameter(key, config_params[key])
     meta = configuration.meta
     meta['continued_training'] = True
     # read model and/or replay buffer
@@ -206,19 +213,7 @@ if continue_training:
     if contine_buffer_at is None:
         contine_buffer_at = f'{modeling_dir}replay_buffer.zip'
     if contine_model_at is None:
-        final_model_path = f'{modeling_dir}model_final.zip'
-        if os.path.exists(final_model_path):
-            contine_model_at = final_model_path
-        else:
-            highest_level = -1
-            fnames = os.listdir(modeling_dir)
-            for fname in fnames:
-                if 'model' in fname:
-                    parts = fname.split('.')[0].split('_')
-                    level = int(parts[2])
-                    if level > highest_level:
-                        highest_level = level
-                        contine_model_at = f'{modeling_dir}{fname}'
+        final_model_path = f'{modeling_dir}model_eval.zip'
     model_component = configuration.get_component('Model')
     model_component.read_model_path = contine_model_at
     model_component.read_replay_buffer_path = contine_buffer_at
@@ -641,29 +636,11 @@ else:
         early_criteria = early_criteria,
         name = 'Curriculum',
     )
-    # SAVERS
-        # these will save any intermediate data we want during the training process
-    from modifiers.saver import Saver
-    checkpoint_freq = total_timesteps # set to a high number to just save at end, curriclum saves on level up as well
-    Saver(
-        base_component = 'Model',
-        parent_method = 'end',
-        track_vars = [
-                    'model', 
-                    #'replay_buffer', # this can cost alot of memory
-                    ],
-        write_folder = output_dir + 'modeling/',
-        save_config = True,
-        save_log = False,
-        order = 'post',
-        frequency = checkpoint_freq,
-        name = 'ModelingSaver',
-    )
 
 
 # CONNECT COMPONENTS
 configuration.connect_all()
-gm.speak('all components collected...')
+gm.speak('all components connected...')
 
 # WRITE CONFIGURATION
 configuration.save()
@@ -683,7 +660,7 @@ gm.speak('training complete! evaluating...')
 configuration.save()
 rm.evaluate_navi({
     'config_path':f'{output_dir}configuration.json',
-    'model_path':f'{output_dir}modeling/model_final.zip',
+    'model_path':f'{output_dir}modeling/model_best.zip',
     'output_dir':f'{output_dir}train_final/',
     'device':device,
     'min_level':min_level,
@@ -692,7 +669,7 @@ rm.evaluate_navi({
 })
 rm.evaluate_navi({
     'config_path':f'{output_dir}configuration.json',
-    'model_path':f'{output_dir}modeling/model_final.zip',
+    'model_path':f'{output_dir}modeling/model_best.zip',
     'output_dir':f'{output_dir}val_final/',
     'device':device,
     'min_level':min_level,
@@ -701,7 +678,7 @@ rm.evaluate_navi({
 })
 rm.evaluate_navi({
     'config_path':f'{output_dir}configuration.json',
-    'model_path':f'{output_dir}modeling/model_final.zip',
+    'model_path':f'{output_dir}modeling/model_best.zip',
     'output_dir':f'{output_dir}test_final/',
     'device':device,
     'min_level':min_level,
