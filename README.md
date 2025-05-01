@@ -2,7 +2,7 @@ This is an experimental github repo to share airsim data and models
 
 To use, download this repo then drag and drop any large file data you need from the dropbox into map_data/observations/...:
 
-https://www.dropbox.com/scl/fo/1b8k2izu23ccu2rf9hmi6/AJAHb-CCQual8IeuoFpqjnA?rlkey=u5688vsipcej5au4kgmxyvh85&st=5v0h9fug&dl=0
+please message me for a Dropbox link
 
 see the map_data/visualize_data.ipynb notebook for an example of how to fetch and visualize data from a given map, sensor, and coordinates and/or navigation path
 
