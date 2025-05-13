@@ -46,10 +46,10 @@ class TeleporterDiscrete(Actor):
 				state['termination_reason'] = state['transcribed_action']['end_reason']
 				return True
 		if self.discretize:
-			target['x'] = round(target['x'])
-			target['y'] = round(target['y'])
-			target['z'] = round(target['z'])
-			target['yaw'] = round(target['yaw']/(math.pi/2))*(math.pi/2)
+			target['x'] = round(target['x']) # float to int
+			target['y'] = round(target['y']) # float to int
+			target['z'] = round(target['z']) # float to int
+			target['yaw'] = round(target['yaw']/(math.pi/2))*(math.pi/2) # int to rads
 		self._drone.teleport(target['x'], target['y'], target['z'], target['yaw'], ignore_collision=False)
 		return False
 		

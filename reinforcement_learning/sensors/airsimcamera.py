@@ -31,18 +31,18 @@ class AirSimCamera(Sensor):
 	# constructor
 	@_init_wrapper
 	def __init__(self, 
-				airsim_component,
-				camera_view='0', 
-				image_type=2, 
-				as_float=False, 
-				is_gray=False,
-				compress=False,
-				is_image = True,
-				transformers_components=None,
-				offline = False,
-				out_size=(255,144),
-			  memory='all', # none all part
-			  ):
+			airsim_component,
+			camera_view='0', 
+			image_type=2, 
+			as_float=False, 
+			is_gray=False,
+			compress=False,
+			is_image = True,
+			transformers_components=None,
+			offline = False,
+			out_size=(256,144),
+			memory='all', # none all part
+		):
 		super().__init__(offline, memory)
 		if image_type in [1, 2, 3, 4]:
 			self.as_float = True

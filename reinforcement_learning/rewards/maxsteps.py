@@ -12,7 +12,7 @@ class MaxSteps(Reward):
 				max_steps=4, # initial number of max steps before episode termination (use update_steps to scale)
 				update_steps=False, # if True, will add more steps for further distance to goal
 				step_ratio=1, # steps added per meter of distance to goal (added to initial max_steps)
-				max_max = 75, # the maximum number that max_steps can get as high as
+				max_max = 777, # the maximum number that max_steps can get as high as
 				use_astar = False, # bases max steps based on astar length
 				astar_multiplier = 4, # max step size is this many times the astar length
 				terminate=True, # =True will terminate episodes on collision

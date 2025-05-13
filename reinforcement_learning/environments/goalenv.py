@@ -2,7 +2,10 @@ from environments.environment import Environment
 from component import _init_wrapper
 import numpy as np
 import utils.global_methods as gm
-import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from IPython.display import display
+from IPython.display import clear_output
 
 # an environment is the heart of RL algorithms
 # the Goal flavor wants the drone to go to Point A to Point B
@@ -28,6 +31,7 @@ class GoalEnv(Environment):
 				episode_counter=0, 
 				save_counter=0,
 				crash_handler=True,
+				debug=False,
 			):
 		super().__init__()
 		self._last_observation_name = 'None'
@@ -95,23 +99,94 @@ class GoalEnv(Environment):
 			self._observations = {}
 		self.save_counter += 1
 
+	def display_obs(self, prev_obs_data, initial_state, previous_state, state):
+		step = state['nSteps']
+		print()
+		print(f'state at timestep {step}')
+		if isinstance(prev_obs_data, dict):
+			img = prev_obs_data['img']
+			vec = prev_obs_data['vec']
+			ncols = self._nPast
+			fig, axs = plt.subplots(ncols=ncols, figsize=(10, 5))
+			if ncols == 1:
+				axs = [axs]
+			for t in range(self._nPast):
+				ax = axs[t]
+				ax.set_xticks([])
+				ax.set_yticks([])
+				ax.set_title(f'img @ t-{t}')
+				ax.imshow(img[t])
+			#plt.suptitle(f't = {step}')
+			plt.tight_layout()
+			plt.show()    
+		else:
+			vec = prev_obs_data
+		
+		j = 0
+		for t in range(self._nPast):
+			for i, vec_sensor in enumerate(self._vector_sensor_names):
+				self._obs_df[vec_sensor][t] = round(vec[j], 4)
+				j += 1
+		pdf = pd.DataFrame(self._obs_df)
+		pdf.index.name = 't'
+		display(pdf)
+
+		# fig, ax = plt.subplots()
+		# ax.table(cellText=pdf.values, colLabels=pdf.columns, cellLoc='center', loc='center')
+		# plt.show()
+		
+		fig, ax = plt.subplots(figsize=(4, 4))
+		start_pos = initial_state['drone_position']
+		goal_pos = initial_state['goal_position']
+		drone_pos = previous_state['drone_position']
+		direction = previous_state['direction']
+		datamap = gm.get_global('datamap')
+		datamap.view_map(fig, ax, x=drone_pos[0], y=drone_pos[1], z=drone_pos[2], direction=direction, 
+					start=start_pos, target=goal_pos, path=self._path, show_z=False, resolution=None)
+		ax.set_title(f'{start_pos} to {goal_pos}')
+		plt.show()
+
+	def display_rew(self, state):
+		plt.show()    
+		
+		for t in range(self._nPast-1, 0, -1):
+			for i, reward in enumerate(self._reward_names):
+				self._rew_df[reward][t] = self._rew_df[reward][t-1]
+			self._rew_df['action'][t] = self._rew_df['action'][t-1]
+		for i, reward in enumerate(self._reward_names):
+			if f'reward_from_{reward}' in state:
+				self._rew_df[reward][0] = round(state[f'reward_from_{reward}'], 4)
+			else:
+				self._rew_df[reward][0] = '-'
+		self._rew_df['action'][0] = state['transcribed_action']
+		pdf = pd.DataFrame(self._rew_df)
+		pdf.index.name = 't'
+		display(pdf)
+
+		# fig, ax = plt.subplots()
+		# ax.table(cellText=pdf.values, colLabels=pdf.columns, cellLoc='center', loc='center')
+		# plt.show()
+
 	def _step(self, rl_output, state=None, return_state=True):
 		# next step
 		self._nSteps += 1 # total number of steps
 		self.step_counter += 1 # total number of steps
 		this_step = 'step_' + str(self._nSteps)
 		if state is None:
-			self._states[this_step] = {}
+			state = self._states[this_step] = {}
 		else:
-			self._states[this_step] = state.copy()
+			state = self._states[this_step] = state.copy()
 		self._states[this_step]['nSteps'] = self._nSteps
 		# clean and save rl_output to state
 		self._states[this_step]['rl_output'] = self.clean_rl_output(rl_output)
+		if self.debug:
+			self.display_obs(self._last_observation_data, self._states[f'step_0'], self._states[f'step_{self._nSteps-1}'], state)
+			state['rl_output'] = int(input())
 		# take action
 		actor_done = self._actor.step(self._states[this_step])
 		# save state kinematics
 		self._states[this_step]['drone_position'] = self._drone.get_position()
-		self._states[this_step]['yaw'] = self._drone.get_yaw()
+		self._states[this_step]['direction'] = self._drone.get_direction()
 		# get observation
 		self._states[this_step]['observation_name'] = self._last_observation_name
 		observation_data, observation_name = self._observer.step(self._states[this_step])
@@ -126,6 +201,14 @@ class GoalEnv(Environment):
 		done = actor_done or rewarder_done
 		self._states[this_step]['done'] = done
 		truncated = False
+		if self.debug:
+			self._last_observation_data = observation_data
+			self._path.append(state['drone_position'])
+			self.display_rew(state)
+			if done:
+				print('terminated', state['termination_reason'])
+				input()
+				clear_output()
 		# save data?
 		if self._track_save and 'observations' in self._track_vars:
 			self._observations[observation_name] = observation_data.copy()
@@ -181,8 +264,8 @@ class GoalEnv(Environment):
 		# set initial state
 		start_x, start_y, start_z = self._spawner.get_start()
 		self._states[this_step]['drone_position'] = [start_x, start_y, start_z]
-		start_yaw = self._spawner.get_yaw()
-		self._states[this_step]['yaw'] = start_yaw
+		start_direction = self._spawner.get_direction()
+		self._states[this_step]['direction'] = start_direction
 		goal_x, goal_y, goal_z = self._spawner.get_goal()
 		self._states[this_step]['goal_position'] = [goal_x, goal_y, goal_z]
 
@@ -197,6 +280,20 @@ class GoalEnv(Environment):
 		# get first observation
 		observation_data, observation_name = self._observer.step(self._states[this_step])
 		self._last_observation_name = observation_name
+
+		if self.debug:
+			self._last_observation_data = observation_data
+			self._obs_df = {}
+			for vec_sensor in self._vector_sensor_names:
+				self._obs_df[vec_sensor] = [0]*self._nPast
+
+			self._rew_df = {}
+			self._rew_df['action'] = ['-']*self._nPast
+			for reward in self._reward_names:
+				self._rew_df[reward] = ['-']*self._nPast
+
+			self._path = []
+
 		
 		# save data?
 		if self._track_save and 'observations' in self._track_vars:

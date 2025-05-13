@@ -35,7 +35,7 @@ class Single(Observer):
 			self._history = np.full(self._history_shape, 0, dtype=np.uint8)
 		else:
 			self._output_shape = (vector_length_forget + vector_length_remember*nPast,)
-			self._history_shape = (vector_length_remember * nPast,)
+			self._history_shape = (vector_length_remember*nPast,)
 			self._history = np.full(self._history_shape, 0, dtype=float)
 		self._old_names = []
 		#print('self._output_shape', self._output_shape)
@@ -53,12 +53,12 @@ class Single(Observer):
 		offline_all = False
 		x, y, z = state['drone_position']
 		#print('xyz', x, y, z)
-		if self.null_if_in_obj:
+		if self.null_if_oob and not offline_all:
+			offline_all = self._map.out_of_bounds(x, y, z)
+			#print('null_if_oob', offline_all)
+		if not offline_all and self.null_if_in_obj:
 			offline_all = self._map.in_object(x, y, z)
 			#print('null_if_in_obj', offline_all)
-		if self.null_if_oob and not offline_all:
-			offline_all = self._map.check_bounds(x, y, z)
-			#print('null_if_oob', offline_all)
 		if offline_all:
 			for sensor in self._sensors:
 				sensor._from_observer = sensor.offline

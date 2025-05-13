@@ -25,6 +25,8 @@ version_dict = {
     #0.25:'scale_0d25',
     #0.125:'scale_0d125',
 }
+patience = 20
+max_epochs = 200
 all_jobs = []
 for scale in version_dict:
     for use_slim_soft in [False, True]:
@@ -34,18 +36,20 @@ for scale in version_dict:
             else:
                 version = 'V3/' + version_dict[scale]
             run_dir = f'models/monocular_depth/{version}/seed_{random_seed}/'
-            if os.path.exists(f'{run_dir}r2s.p'):
-                continue
+            #if os.path.exists(f'{run_dir}r2s.p'):
+            #    continue
             command_line_arguments = {
                 'version':version,
                 'scale':scale,
                 'random_seed':random_seed,
                 'use_slim_cnn':True,
                 'use_slim_train':True,
+                'patience':patience,
+                'max_epochs':max_epochs,
                 'use_slim_soft':use_slim_soft,
             }
             exclude_servers = ['fox', 'apollo', 'flareon'] ## not enough ram
-            if scale < 8:
+            if scale < 4:
                 exclude_servers.append('magma') # save for big models
                 exclude_servers.append('hephaestus') # save for big models
             if scale >= 8:
@@ -64,10 +68,10 @@ for scale in version_dict:
             all_jobs.append(job)
 
 device_map = {
-    'magma':{'cuda:0':0, 'cuda:1':1, 'cpu':0}, # 24 gb VRAM, 125 gb RAM
+    'magma':{'cuda:0':1, 'cuda:1':1, 'cpu':0}, # 24 gb VRAM, 125 gb RAM
     #'hephaestus':{'cuda:0':1, 'cpu':0}, # 24 gb VRAM, 126 gb RAM
-    #'ace':{'cuda:0':0, 'cuda:1':1, 'cuda:2':0, 'cpu':0}, # 11 gb VRAM, 125 gb RAM
-    'pyro':{'cuda:0':1, 'cpu':0}, # 11 gb VRAM, 62 gb RAM
+    #'ace':{'cuda:0':1, 'cuda:1':1, 'cuda:2':1, 'cpu':0}, # 11 gb VRAM, 125 gb RAM
+    #'pyro':{'cuda:0':1, 'cpu':0}, # 11 gb VRAM, 62 gb RAM
     'phoenix':{'cuda:0':1, 'cpu':0}, # 6 gb VRAM, 62 gb RAM
     'torch':{'cuda:0':1, 'cpu':0}, # 6 gb VRAM, 62 gb RAM
     #'fox':{'cuda:0':1, 'cpu':0}, # 4 gb VRAM, 15 gb RAM

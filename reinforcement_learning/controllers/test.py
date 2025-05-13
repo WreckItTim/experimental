@@ -11,7 +11,7 @@ class Test(Controller):
 				environment_component, # environment to run eval in
 				model_component, # used to make predictions
 				spawner_component, # used to spawn drone based on astar paths
-				results_directory,
+				results_directory=None,
 				ckpt_freq=1000,
 				job_name=None,
 				 ):
@@ -19,7 +19,7 @@ class Test(Controller):
 
 	# runs control on components
 	def run(self):
-		self._configuration.reset_all()
+		#self._configuration.reset_all()
 		return self.evaluate_set()
 
 	def connect(self):
@@ -41,7 +41,7 @@ class Test(Controller):
 		q = 0
 		for i, reward in enumerate(rewards):
 			q += reward * gamma**(len(rewards)-i-1)
-		length = (1+len(rewards)) / initial_state['astar_length']
+		length = (len(rewards)) / initial_state['astar_length']
 		# end of episode
 		if 'reached_goal' not in state or 'termination_reason' not in state:
 			return False, 'unknown', q, np.nan
@@ -55,7 +55,9 @@ class Test(Controller):
 		termination_reasons = []
 		qs = []
 		episode_idx = 0
-		while(episode_idx < self._spawner._n_paths):
+		#self._spawner.reset_learning()
+		#print('eval set', self._spawner.split_name, self._spawner._n_split_paths)
+		while(episode_idx < self._spawner._n_split_paths):
 			# step through next episode
 			success, termination_reason, q, length = self.evaluate_episode()
 			#gm.speak(f'episode:{episode} goal:{success} q:{q} termination:{termination_reason}')
@@ -64,7 +66,7 @@ class Test(Controller):
 			termination_reasons.append(termination_reason)
 			qs.append(q)
 			if episode_idx % self.ckpt_freq == 0:
-				perc_done = 100*episode_idx/self._spawner._n_paths
+				perc_done = 100*episode_idx/self._spawner._n_split_paths
 				#gm.speak(f'evaluation percent done: {perc_done:.2f}%')
 				if self.job_name is not None: 
 					gm.progress(self.job_name, f'{perc_done:.2f}%')
@@ -75,7 +77,8 @@ class Test(Controller):
 			'termination_reasons':termination_reasons,
 			'qs':qs,
 		}
-		results_path = self.results_directory + 'evaluation.json'
-		gm.write_json(results_dic, results_path)
+		if self.results_directory is not None:
+			results_path = self.results_directory + 'evaluation.json'
+			gm.write_json(results_dic, results_path)
 		return results_dic
 

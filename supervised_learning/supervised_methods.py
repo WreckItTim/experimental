@@ -192,8 +192,9 @@ def train(model_func, model_params, optimizier_func, optimizer_params, DL_train,
           device='cpu', criterion=nn.MSELoss(), minimize_error=True,
           patience=10, max_epochs=10_000, augmentors=None, show_curve_freq=1, continue_training=False,
           pytorch_threads=1, checkpoint_freq=0, run_path=None, output_progress=True, print_progress=True,
-          forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={}, 
-         ):
+          forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val,
+          forward_val_extra_params={}, scheduler_func=None, scheduler_params={},
+     ):
     def _forward_train(DL):
         if augmentors is not None:
             X_old = DL.dataset.X.copy()
@@ -216,23 +217,38 @@ def train(model_func, model_params, optimizier_func, optimizer_params, DL_train,
     error_multiplier = 1 if minimize_error else -1
 
     # make model and other init vars
+    model = model_func(**model_params)
+    model.to(device)
+    # make optimizer
+    optimizer_params['params'] = model.parameters()
+    model.optimizer = optimizier_func(**optimizer_params)
+    # make lr scheduler
+    scheduler = None
+    if scheduler_func is not None:
+        scheduler_params['optimizer'] = model.optimizer
+        scheduler = scheduler_func(**scheduler_params)
+        print('scheduler', scheduler)
+    print('optimizer', model.optimizer)
+    print('loss', criterion)
+    # load old state_dict or restart?
     renew = not continue_training
     if continue_training:
         try:
-            model = th.load(run_path+'model_ckpt.pt')
-            model.to(device)
-            best_weights = gm.pk_read(run_path+'best_weigths_ckpt.p')
-            wait = gm.pk_read(run_path+'wait_ckpt.p')
-            best_error = gm.pk_read(run_path+'best_error_ckpt.p')
-            start_epoch = gm.pk_read(run_path+'epoch_ckpt.p')
-            train_times = gm.pk_read(run_path+'train_times_ckpt.p')
-            train_errors = gm.pk_read(run_path+'train_errors_ckpt.p')
-            val_errors = gm.pk_read(run_path+'val_errors_ckpt.p')
+            checkpoint = th.load(run_path + 'torch_ckpt.pt')
+            start_epoch = checkpoint['epoch']
+            model.load_state_dict(checkpoint['model'])
+            model.optimizer.load_state_dict(checkpoint['optimizer'])
+            if scheduler is not None:
+                scheduler.load_state_dict(checkpoint['scheduler'])
+            best_weights = checkpoint['best_weights']
+            wait = checkpoint['wait']
+            best_error = checkpoint['best_error']
+            train_times = checkpoint['train_times']
+            train_errors = checkpoint['train_errors']
+            val_errors = checkpoint['val_errors']
         except:
             renew = True
     if renew:
-        model = model_func(**model_params)
-        model.to(device)
         best_weights = copy.deepcopy(model.state_dict())
         wait = 0
         start_epoch = 1
@@ -242,9 +258,6 @@ def train(model_func, model_params, optimizier_func, optimizer_params, DL_train,
             val_errors = [_forward_val(DL_val)]
             best_error = val_errors[0]
         train_times = []
-    # make optimizer
-    optimizer_params['params'] = model.parameters()
-    model.optimizer = optimizier_func(**optimizer_params)
     # training loop
     if start_epoch < max_epochs:
         for epoch in range(start_epoch, max_epochs+1):
@@ -279,14 +292,20 @@ def train(model_func, model_params, optimizier_func, optimizer_params, DL_train,
             if output_progress:
                 gm.progress(gm.get_global('job_name'), progress_str)
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
-                th.save(model, run_path+'model_ckpt.pt')
-                gm.pk_write(best_weights, run_path+'best_weigths_ckpt.p')
-                gm.pk_write(wait, run_path+'wait_ckpt.p',)
-                gm.pk_write(best_error, run_path+'best_error_ckpt.p')
-                gm.pk_write(epoch, run_path+'epoch_ckpt.p')
-                gm.pk_write(train_times, run_path+'train_times_ckpt.p')
-                gm.pk_write(train_errors, run_path+'train_errors_ckpt.p')
-                gm.pk_write(val_errors, run_path+'val_errors_ckpt.p')
+                th.save({
+                    'epoch': epoch + 1,
+                    'model': model.state_dict(),
+                    'optimizer' : model.optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict() if scheduler is not None else None,
+                    'best_weights': best_weights,
+                    'wait': wait,
+                    'best_error': best_error,
+                    'train_times': train_times,
+                    'train_errors': train_errors,
+                    'val_errors': val_errors,
+                }, run_path + 'torch_ckpt.pt')
+            if scheduler is not None:
+                scheduler.step()
     model.load_state_dict(best_weights)
     return model, train_errors, val_errors, train_times
 
@@ -344,13 +363,13 @@ def get_idx(sI, eI, n):
 # X/Y train/val/test are dictionaries containing data indexed by their group name/number
     # to elimiate groups simply index by row number
 def one_fold(model_func, model_params, X_train, Y_train, X_val=None, Y_val=None,
-             optimizier_func=th.optim.Adam, optimizer_params={}, minimize_error=True,
-             fold_num=0, splits=[0.6, 0.2, 0.2], criterion=nn.MSELoss(), patience=10, max_epochs=1_000, 
-             augmentors=None, sample_size=None, device='cpu', batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False,
-             checkpoint_freq=0, folder_path='dummy/', random_seed=42, 
-             x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={},
-             forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val, forward_val_extra_params={},
-            ):
+        optimizier_func=th.optim.Adam, optimizer_params={}, minimize_error=True, fold_num=0, splits=[0.6, 0.2, 0.2],
+        criterion=nn.MSELoss(), patience=10, max_epochs=1_000, augmentors=None, sample_size=None, device='cpu',
+        batch_size=32, pytorch_threads=1, num_workers=0, pin_memory=False, checkpoint_freq=0, folder_path='dummy/',
+        random_seed=42, x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={},
+        forward_train_func=forward_train, forward_train_extra_params={}, forward_val_func=forward_val,
+        forward_val_extra_params={}, scheduler_func=None, scheduler_params={},
+    ):
     # set random seeds for replicability
     random.seed(random_seed)
     np.random.seed(random_seed)
@@ -411,7 +430,9 @@ def one_fold(model_func, model_params, X_train, Y_train, X_val=None, Y_val=None,
         patience=patience, max_epochs=max_epochs, augmentors=augmentors,
         pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path,
         forward_train_func=forward_train_func, forward_train_extra_params=forward_train_extra_params, 
-        forward_val_func=forward_val_func, forward_val_extra_params=forward_val_extra_params,)
+        forward_val_func=forward_val_func, forward_val_extra_params=forward_val_extra_params,
+        scheduler_func=None, scheduler_params={},
+    )
     
     return (model, train_idx, val_idx, test_idx, train_errors, val_errors, train_times)
 
@@ -423,7 +444,7 @@ def one_shot(model_func, model_params, run_path, X_train, Y_train, X_val=None, Y
              checkpoint_freq=0, random_seed=42, show_curve_freq=1, continue_training=False,
              x_preproc_func=None, x_preproc_params={}, y_preproc_func=None, y_preproc_params={},
              forward_train_func=forward_train, forward_train_extra_params={}, 
-             forward_val_func=forward_val, forward_val_extra_params={},
+             forward_val_func=forward_val, forward_val_extra_params={}, scheduler_func=None, scheduler_params={},
             ):
     # set random seeds for replicability
     random.seed(random_seed)
@@ -446,10 +467,13 @@ def one_shot(model_func, model_params, run_path, X_train, Y_train, X_val=None, Y
     model, train_errors, val_errors, train_times = train(model_func=model_func, model_params=model_params,
         optimizier_func=optimizier_func, optimizer_params=optimizer_params, DL_train=DL_train, DL_val=DL_val, 
         device=device, criterion=criterion, minimize_error=minimize_error, patience=patience, 
-        max_epochs=max_epochs, augmentors=augmentors, show_curve_freq=show_curve_freq, continue_training=continue_training,
-        pytorch_threads=pytorch_threads, checkpoint_freq=checkpoint_freq, run_path=run_path, 
-        forward_train_func=forward_train_func, forward_train_extra_params=forward_train_extra_params, 
-        forward_val_func=forward_val_func, forward_val_extra_params=forward_val_extra_params,)
+        max_epochs=max_epochs, augmentors=augmentors, show_curve_freq=show_curve_freq,
+        continue_training=continue_training, pytorch_threads=pytorch_threads,
+        checkpoint_freq=checkpoint_freq, run_path=run_path, forward_train_func=forward_train_func,
+        forward_train_extra_params=forward_train_extra_params, forward_val_func=forward_val_func,
+        forward_val_extra_params=forward_val_extra_params, scheduler_func=scheduler_func,
+        scheduler_params=scheduler_params,
+    )
     
     return model, train_errors, val_errors, train_times
 

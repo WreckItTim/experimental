@@ -104,7 +104,7 @@ def environment_v1(x_bounds, y_bounds, z_bounds, data_path, airsim_map):
 	)
 
 	# create map object
-	from maps.etherial import Etherial
+	from reinforcement_learning.maps.datamap import Etherial
 	Etherial(
 		rooftops_component='Rooftops',
 		x_bounds = x_bounds,
@@ -165,7 +165,7 @@ def observations_v1(observations_path, forward_sensor, x_bounds, y_bounds, z_bou
 		id_name=id_name, x_vals=x_vals, y_vals=y_vals, z_vals=z_vals, yaw_vals=yaw_vals,
 		name = 'DataDictForward',
 	)
-	from sensors.cache import Cache
+	from reinforcement_learning.sensors.datamap import Cache
 	Cache(
 		datadict_component = 'DataDictForward',
 		drone_component = 'Drone',

@@ -10,16 +10,17 @@ class Distance(Sensor):
 	
 	@_init_wrapper
 	def __init__(self,
-                 misc_component, 
-                 misc2_component, 
-				 include_x = True,
-				 include_y = True,
-				 include_z = True,
-				 prefix = '',
-				 transformers_components = None,
-				 offline = False,
-			  memory='all', # none all part
-			  ):
+			misc_component, 
+			misc2_component, 
+			include_x = True,
+			include_y = True,
+			include_z = True,
+			prefix = '',
+			transformers_components = None,
+			offline = False,
+			memory='all', # none all part
+			out_size=(1),
+		):
 		super().__init__(offline, memory)
 
 	def create_obj(self, data):

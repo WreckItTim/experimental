@@ -59,13 +59,21 @@ def load_rooftops(map_name, version='v1'):
     rooftops_arr = np.array(rooftops_arr)
     return rooftops_dict, rooftops_arr
 
-def yaw_to_idx(yaw):
+def fix_yaw(yaw):
     while yaw < 0:
         yaw += 2*np.pi
     while yaw >= 2*np.pi:
         yaw -= 2*np.pi
-    yaw_idx = round(yaw/(np.pi/2))
-    return yaw_idx
+    return yaw
+
+def yaw_to_direction(yaw):
+    yaw = fix_yaw(yaw)
+    direction = round(yaw/(np.pi/2))
+    return direction
+
+def direction_to_yaw(direction):
+    yaw = direction * np.pi/2
+    return yaw
     
     
 # helper function to view data results after running a view/fetch cell below
@@ -140,11 +148,11 @@ class DataMap:
         self.data_sets = []
 
     # plots raw map (objects) without drone
-    def plot_map(self, fig, ax, show_z=False, resolution=None, x_anchor=None, y_anchor=None):
+    def plot_map(self, fig, ax, show_z=False, resolution=None, x_anchor=None, y_anchor=None, cmap='hot'):
         interval = 40
         x_min = list(self.rooftops_dict.keys())[0]
         y_min = list(self.rooftops_dict[x_min].keys())[0]
-        im = ax.imshow(self.rooftops_arr.T, cmap='hot', interpolation='nearest', origin='lower')
+        im = ax.imshow(self.rooftops_arr.T, cmap=cmap, interpolation='nearest', origin='lower')
         if show_z:
             cbar = fig.colorbar(im, shrink=0.8)
             cbar.ax.get_yaxis().labelpad = 25
@@ -162,39 +170,42 @@ class DataMap:
             ax.set_ylim(y_anchor-resolution[1], y_anchor+resolution[1])
 
     # plots drone on map along with other path info
-    def view_map(self, fig, ax, x=None, y=None, z=None, yaw=None, 
-                 start=None, target=None, path=None, show_z=False, resolution=None):
-        # yaw markers for each direction
-        yaw_markers = {
+    def view_map(self, fig, ax, x=None, y=None, z=None, direction=None, 
+                 start=None, target=None, path=None, show_z=False, resolution=None, cmap='hot'):
+        # direction markers for each direction
+        direction_markers = {
             0:10,
             1:9,
             2:11,
             3:8,
         }
-        self.plot_map(fig, ax, show_z, resolution, x+self.x_shift, y+self.y_shift)
-        ax.scatter(x+self.x_shift, y+self.y_shift, color='cyan', marker=yaw_markers[yaw])
         horizion = 255
-        if yaw == 0: a, b, c, d = -1, 1, 1, 1
-        if yaw == 1: a, b, c, d = 1, 1, 1, -1
-        if yaw == 2: a, b, c, d = -1, -1, 1, -1
-        if yaw == 3: a, b, c, d = -1, 1, -1, -1
-        fov1_x_points = [x+self.x_shift+a*i for i in range(horizion)]
-        fov1_y_points = [y+self.y_shift+b*i for i in range(horizion)]
-        fov2_x_points = [x+self.x_shift+c*i for i in range(horizion)]
-        fov2_y_points = [y+self.y_shift+d*i for i in range(horizion)]
-        ax.plot(fov1_x_points, fov1_y_points, color='cyan', linestyle='--')
-        ax.plot(fov2_x_points, fov2_y_points, color='cyan', linestyle='--')
+        if x is not None and y is not None:
+            self.plot_map(fig, ax, show_z, resolution, x+self.x_shift, y+self.y_shift, cmap)
+            ax.scatter(x+self.x_shift, y+self.y_shift, color='cyan', marker=direction_markers[direction])
+            if direction == 0: a, b, c, d = -1, 1, 1, 1
+            if direction == 1: a, b, c, d = 1, 1, 1, -1
+            if direction == 2: a, b, c, d = -1, -1, 1, -1
+            if direction == 3: a, b, c, d = -1, 1, -1, -1
+            fov1_x_points = [x+self.x_shift+a*i for i in range(horizion)]
+            fov1_y_points = [y+self.y_shift+b*i for i in range(horizion)]
+            fov2_x_points = [x+self.x_shift+c*i for i in range(horizion)]
+            fov2_y_points = [y+self.y_shift+d*i for i in range(horizion)]
+            ax.plot(fov1_x_points, fov1_y_points, color='cyan', linestyle='--')
+            ax.plot(fov2_x_points, fov2_y_points, color='cyan', linestyle='--')
+        else:
+            self.plot_map(fig, ax, show_z, resolution, None, None, cmap)
         if start is not None:
             ax.scatter(start[0]+self.x_shift, start[1]+self.y_shift, color='blue', marker='x', s=16)
         if target is not None:
             ax.scatter(target[0]+self.x_shift,target[1]+self.y_shift, color='green', marker='*', s=32)
         if path is not None:
             for point in path:
-                ax.scatter(point[1]+self.y_shift, point[0]+self.x_shift, color='blue', marker='x', s=16)
+                ax.scatter(point[0]+self.x_shift, point[1]+self.y_shift, color='blue', marker='x', s=16)
         ax.set_aspect('auto')
     
     def animate(self, sensor_names, ncols, nrows,
-                start=None, target=None, show_path=False, text_blocks=None, resolution=None, sensor_psuedonames={}):
+                start=None, target=None, show_path=False, text_blocks=None, resolution=None, sensor_psuedonames={}, cmap='hot'):
         # Create a figure and axes
         fig, axs = plt.subplots(ncols=ncols, nrows=nrows)#, figsize=(4*ncols,4*nrows))
         fig.tight_layout()#h_pad=0, w_pad=0)
@@ -205,12 +216,12 @@ class DataMap:
             # next frame
             observations = self.frames[t]
             state = self.states[t]
-            x, y, z, yaw = state
+            x, y, z, direction = state
             # view map
             ax = get_ax(axs, 0, 0, nrows, ncols)
             ax.clear()
-            self.view_map(fig, ax, x, y, z, yaw, start, target, path, False, resolution)
-            ax.set_title(f'x:{int(x)} y:{int(y)} z:{int(z)} dir:{yaw}') # dir for d-pad direction -- 0,1,2,3
+            self.view_map(fig, ax, x, y, z, direction, start, target, path, False, resolution, cmap)
+            ax.set_title(f'x:{int(x)} y:{int(y)} z:{int(z)} dir:{direction}') # dir for d-pad direction -- 0,1,2,3
             #ax.set_title(f'Birds-eye View') # dir for d-pad direction -- 0,1,2,3
             if show_path:
                 path.append([x, y])
@@ -346,15 +357,15 @@ class DataMap:
         return nrows
 
     # reads corresponding data_dict_part into memory if single data point does not exist in current data_dict
-    def get_data_point(self, x, y, z, yaw, sensor_name, id_names=['alpha'], ):
+    def get_data_point(self, x, y, z, direction, sensor_name, id_names=['alpha'], ):
         if sensor_name not in self.data_dicts:
             self.data_dicts[sensor_name] = {}
             self.loaded_parts[sensor_name] = []
         data_dict = self.data_dicts[sensor_name]
         observation = None  
-        data_exists = x in data_dict and y in data_dict[x] and z in data_dict[x][y] and yaw in data_dict[x][y][z]
+        data_exists = x in data_dict and y in data_dict[x] and z in data_dict[x][y] and direction in data_dict[x][y][z]
         if data_exists:
-            observation = data_dict[x][y][z][yaw]
+            observation = data_dict[x][y][z][direction]
         else:
             sensor_dir = f'map_data/observations/{sensor_name}/{self.map_name}/'
             file_names = os.listdir(sensor_dir)
@@ -389,26 +400,26 @@ class DataMap:
                             #print(data_dict_part[_x][_y][_z].keys())
                             if _z not in data_dict[_x][_y]:
                                 data_dict[_x][_y][_z] = {}
-                            for _yaw in data_dict_part[_x][_y][_z]:
-                                #print(data_dict_part[_x][_y][_z][_yaw].shape)
-                                data_dict[_x][_y][_z][_yaw] = data_dict_part[_x][_y][_z][_yaw]
-                data_exists = x in data_dict and y in data_dict[x] and z in data_dict[x][y] and yaw in data_dict[x][y][z]
+                            for _direction in data_dict_part[_x][_y][_z]:
+                                #print(data_dict_part[_x][_y][_z][_direction].shape)
+                                data_dict[_x][_y][_z][_direction] = data_dict_part[_x][_y][_z][_direction]
+                data_exists = x in data_dict and y in data_dict[x] and z in data_dict[x][y] and direction in data_dict[x][y][z]
                 if data_exists:
-                    observation = data_dict[x][y][z][yaw]
+                    observation = data_dict[x][y][z][direction]
                     break   
         return observation
     
-    def _data_point(self, x, y, z, yaw, sensor_names,
+    def _data_point(self, x, y, z, direction, sensor_names,
                     make_animation, ncols, nrows, 
                     return_data, id_names=['alpha'], include_nulls=False):
-        state = [x, y, z, yaw]
+        state = [x, y, z, direction]
         if make_animation:
             this_frame = []
         # fetch observations
         contains_nulls = False
         observations = {}
         for sensor_idx, sensor_name in enumerate(sensor_names):
-            observation = self.get_data_point(x, y, z, yaw, sensor_name, id_names, )
+            observation = self.get_data_point(x, y, z, direction, sensor_name, id_names, )
             if make_animation:
                 observation_viewable = convert_observation(observation, sensor_name)
                 this_frame.append(observation_viewable)
@@ -439,7 +450,7 @@ class DataMap:
             self.data_sets['coordinates'] = np.array(self.data_sets['coordinates'])
         return animation
     
-    # coordinates is list of [x, y, z, yaw] 
+    # coordinates is list of [x, y, z, direction] 
     def data_at_coordinates(self, sensor_names, coordinates, 
                             make_animation=True, return_data=True, ncols=2, additional_subplots=0, resolution=None,
                             sensor_psuedonames={}, include_nulls=False, id_names=['alpha']):
@@ -460,8 +471,8 @@ class DataMap:
         target = path[-1]['position']
         for point in path:
             x, y, z = point['position']
-            yaw = point['direction']
-            self._data_point(x, y, z, yaw, sensor_names, make_animation, ncols, nrows, return_data, id_names, include_nulls)
+            direction = point['direction']
+            self._data_point(x, y, z, direction, sensor_names, make_animation, ncols, nrows, return_data, id_names, include_nulls)
         animation = self._data_end(sensor_names, make_animation, ncols, nrows,
                               start, target, True, return_data, None, resolution, sensor_psuedonames)
         return self.data_sets, animation
@@ -473,7 +484,7 @@ class DataMap:
         nrows = self._data_start(sensor_names, return_data, ncols, additional_subplots+1)
         initial_state = episode[0]
         start_pos = initial_state['drone_position']
-        start_yaw = initial_state['yaw']
+        start_direction = initial_state['direction']
         target_pos = initial_state['goal_position']
         astar_length = initial_state['astar_length']
         path_linearity = initial_state['path_linearity']
@@ -482,7 +493,7 @@ class DataMap:
         text_blocks = []
         for state_idx, state in enumerate(episode):
             x, y, z = state['drone_position']
-            yaw = yaw_to_idx(state['yaw'])
+            direction = state['direction']
             if state_idx == len(episode)-1:
                 reached_goal = state['reached_goal']
                 has_collided = state['has_collided']
@@ -503,7 +514,7 @@ class DataMap:
                     f'reward: {reward:.4f}',
                 ]
             text_blocks.append(text_block)
-            self._data_point(x, y, z, yaw, sensor_names, make_animation, ncols, nrows, return_data, id_names, include_nulls )
+            self._data_point(x, y, z, direction, sensor_names, make_animation, ncols, nrows, return_data, id_names, include_nulls )
         animation = self._data_end(sensor_names, make_animation, ncols, nrows, 
                               start_pos, target_pos, True, return_data, text_blocks, resolution, sensor_psuedonames)
         return self.data_sets, animation
@@ -522,7 +533,7 @@ class DataMap:
         x_vals = [x for x in range(x_bounds[0], x_bounds[1], 2)]
         y_vals = [y for y in range(y_bounds[0], y_bounds[1], 2)]
         z_vals = [4]
-        yaw_vals = [0, 1, 2, 3]
+        direction_vals = [0, 1, 2, 3]
     
         # get valid coordinates
         coordinates = []
@@ -531,8 +542,8 @@ class DataMap:
                 for z in z_vals:
                     if self.in_object(x, y, z):
                         continue
-                    for yaw in yaw_vals:
-                        coordinates.append([x, y, z, yaw])
+                    for direction in direction_vals:
+                        coordinates.append([x, y, z, direction])
         coordinates = np.array(coordinates)
     
         # read coordinate_idxs for static sampling
@@ -602,4 +613,7 @@ class DataMap:
     # x,y must be int
     def in_object(self, x, y, z, collision_threshold=2):
         return z <= self.rooftops_dict[x][y] + collision_threshold
+
+    def get_roof(self, x, y):
+        return self.rooftops_dict[x][y]
         

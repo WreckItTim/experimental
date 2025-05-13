@@ -6,9 +6,11 @@ import utils.global_methods as gm
 class Sensor(Component):
 	# constructor, offline is a boolean that handles if sensor goes offline
 	def __init__(self,
-			  offline=False,
-			  memory='all', # none all part
-			  ):
+			offline=False,
+			memory='all', # none all part
+			transformers_components=None,
+			out_size=(0),
+		):
 		self.connect_priority = -1 # order: sensors, observers, environment, model
 
 	# creates an observation object given a data array

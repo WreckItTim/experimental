@@ -94,7 +94,7 @@ class Random(Spawner):
 			goal_x = drone_position[0] + delta_x
 			goal_y = drone_position[1] + delta_y
 			# check x,y bounds
-			if self._bounds.check_bounds2D(goal_x, goal_y):
+			if self._bounds.out_of_bounds2D(goal_x, goal_y):
 				# add vertical position to be on top of highest collidable object
 				if self.vertical:
 					goal_z = self._map.get_roof(goal_x, goal_y) + self.dz
@@ -108,7 +108,7 @@ class Random(Spawner):
 					# check if spawned in object
 					in_object = self._map.in_object(goal_x, goal_y, goal_z)
 				# check if valid goal position
-				if not in_object and self._bounds.check_bounds(goal_x, goal_y, goal_z):
+				if not in_object and self._bounds.out_of_bounds(goal_x, goal_y, goal_z):
 					valid_point = True
 					break
 			# otherwise recheck (check for number of attempts and throw warning if exceeded)

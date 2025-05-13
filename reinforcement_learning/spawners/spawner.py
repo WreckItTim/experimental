@@ -32,5 +32,8 @@ class Spawner(Component):
 	def get_yaw(self):
 		return self._start_yaw
 
+	def get_direction(self):
+		return self._start_direction
+
 	def connect(self):
 		super().connect()

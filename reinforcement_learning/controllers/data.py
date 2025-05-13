@@ -66,17 +66,17 @@ class Data(Controller):
 
 	def get_data_point(self, point, p_idx, state):
 		# get next point
-		x, y, z, yaw, yaw_idx = self.next_point(point)
+		x, y, z, yaw, yaw_key = self.next_point(point)
 
 		# data point exists yet?
-		if self.data_exists(x, y, z, yaw_idx, p_idx):
+		if self.data_exists(x, y, z, yaw_key, p_idx):
 			return
 
 		# make sensor observation at desired location
 		data, x_drone, y_drone, z_drone, yaw_drone = self.observe(x, y, z, yaw, p_idx, state)
 
 		# add new data point to list or dict
-		self.add_data_point(x, y, z, yaw, yaw_idx, x_drone, y_drone, z_drone, yaw_drone, p_idx, data)
+		self.add_data_point(x, y, z, yaw, yaw_key, x_drone, y_drone, z_drone, yaw_drone, p_idx, data)
 
 		# checkpoint
 		if p_idx % self.checkpoint_frequency == 0:
@@ -140,13 +140,13 @@ class Data(Controller):
 			#gm.write_json(self._log, self._log_path)
 		self._added_points = 0
 
-	def data_exists(self, x, y, z, yaw_idx, p_idx):
+	def data_exists(self, x, y, z, yaw_key, p_idx):
 		if self.save_as in ['dict']:
-			return x in self._data_dict and y in self._data_dict[x] and z in self._data_dict[x][y] and yaw_idx in self._data_dict[x][y][z]
+			return x in self._data_dict and y in self._data_dict[x] and z in self._data_dict[x][y] and yaw_key in self._data_dict[x][y][z]
 		if self.save_as in ['list']:
 			return p_idx < len(self._data_list)
 
-	def add_data_point(self, x, y, z, yaw, yaw_idx, x_drone, y_drone, z_drone, yaw_drone, p_idx, data):
+	def add_data_point(self, x, y, z, yaw, yaw_key, x_drone, y_drone, z_drone, yaw_drone, p_idx, data):
 		if self.save_as in ['dict']:
 			if x not in self._data_dict:
 				self._data_dict[x] = {}
@@ -154,7 +154,7 @@ class Data(Controller):
 				self._data_dict[x][y] = {}
 			if z not in self._data_dict[x][y]:
 				self._data_dict[x][y][z] = {}
-			self._data_dict[x][y][z][yaw_idx] = data
+			self._data_dict[x][y][z][yaw_key] = data
 		if self.save_as in ['list']:
 			self._data_list.append(data)
 		self._point_list.append({
@@ -178,10 +178,10 @@ class Data(Controller):
 		x, y, z, yaw = point
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw_idx = mm.yaw_to_idx(yaw)
+			yaw_key = mm.yaw_to_direction(yaw)
 		else:
-			yaw_idx = yaw
-		return x, y, z, yaw, yaw_idx
+			yaw_key = yaw
+		return x, y, z, yaw, yaw_key
 
 	def teleport(self, x, y, z, yaw):
 		# call drone to teleport

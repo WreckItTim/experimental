@@ -12,14 +12,14 @@ class PortCamera(Sensor):
 	# constructor
 	@_init_wrapper
 	def __init__(self, 
-			  port='udp://0.0.0.0:11111', 
-			  is_gray=False,
-			  write=True,
-			  transformers_components=None,
-			  offline = False,
-			  out_size = (255,144),
-			  memory='all', # none all part
-			  ):
+			port='udp://0.0.0.0:11111', 
+			is_gray=False,
+			write=True,
+			transformers_components=None,
+			offline = False,
+			out_size = (256,144),
+			memory='all', # none all part
+		):
 		super().__init__(offline, memory)
 		self._camera = None
 		

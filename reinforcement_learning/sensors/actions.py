@@ -9,13 +9,21 @@ class Actions(Sensor):
 	
 	@_init_wrapper
 	def __init__(self,
-                 actor_component,
-				 prefix = '',
-				 transformers_components = None,
-				 offline = False,
-			  memory='all', # none all part
-			  ):
+			actor_component,
+			prefix = '',
+			transformers_components = None,
+			offline = False,
+			memory='all', # none all part
+			out_size=(1),
+		):
 		super().__init__(offline, memory)
+
+	def connect(self, state=None):
+		super().connect(state)
+		if self._actor._type == 'discrete':
+			self.out_size = (1)
+		else:
+			self.out_size = (len(self._actor._actions))
 
 	def create_obj(self, data):
 		observation = Vector(
@@ -33,19 +41,21 @@ class Actions(Sensor):
 	def step(self, state):
 		nSteps = state['nSteps']
 		if nSteps == 0:
-			observation = self.get_null()
+			if self._actor._type == 'discrete':
+				data = [1 / (len(self._actor._actions)+2)]
+			else:
+				data = [1 / (action[i].max_space - action.min_space + 2) for action in self._actor._actions]
 		else:	
 			rl_output = state['rl_output']
 			if self._actor._type == 'discrete':
-				# add 1 to length so that 0 is reserved for no-data
-				data = [(rl_output+1) / (len(self._actor._actions)+1)]
+				# add 2 to length so that 0 is reserved for no-data and 1 is reserved for start of episode
+				data = [(rl_output+2) / (len(self._actor._actions)+2)]
 			else:
-				# subtract by epsilon so that 0 is reserved for no-data
-				epsilon = 1e-2
+				# add 2 so that 0 is reserved for no-data and 1 is reserved for start of episode
 				data = [0] * len(rl_output)
 				for i in range(len(rl_output)):
-					data[i] = (rl_output[i] - self._actor._actions[i].min_space + epsilon) / (self._actor._actions[i].max_space - self._actor._actions[i].min_space + epsilon)
+					data[i] = (rl_output[i] - self._actor._actions[i].min_space + 2) / (self._actor._actions[i].max_space - self._actor._actions[i].min_space + 2)
 
-			observation = self.create_obj(data)
+		observation = self.create_obj(data)
 		transformed = self.transform(observation)
 		return transformed

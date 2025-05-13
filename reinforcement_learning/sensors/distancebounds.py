@@ -10,16 +10,22 @@ class DistanceBounds(Sensor):
 	
 	@_init_wrapper
 	def __init__(self,
-				drone_component, 
-				x_bounds,
-				y_bounds,
-				z_bounds,
-				transformers_components = None,
-				include_z = False,
-				offline = False,
-			  memory='all', # none all part
-			  ):
+			drone_component, 
+			x_bounds,
+			y_bounds,
+			z_bounds,
+			transformers_components = None,
+			include_z = False,
+			offline = False,
+			memory='all', # none all part
+			out_size=(1),
+		):
 		super().__init__(offline, memory)
+
+	def connect(self, state=None):
+		super().connect(state)
+		if self.include_z:
+			self.out_size = (3)
 
 	def create_obj(self, data):
 		observation = Vector(
@@ -35,25 +41,20 @@ class DistanceBounds(Sensor):
 	# get information reltaive between current and objective point
 	def step(self, state=None):
 		data = []
-		position = np.array(self._drone.get_position())
-		yaw = np.array(self._drone.get_yaw())
-		while yaw < 0:
-			yaw += 2*np.pi
-		while yaw >= 2*np.pi:
-			yaw -= 2*np.pi
-		yaw = round(yaw/(np.pi/2))
-		if yaw == 0: # facing forward
-			xy_distance = abs(position[0] - self.x_bounds[1])
-		if yaw == 1: # facing right
-			xy_distance = abs(position[1] - self.y_bounds[1])
-		if yaw == 2: # facing backward
-			xy_distance = abs(position[0] - self.x_bounds[0])
-		if yaw == 3: # facing left
-			xy_distance = abs(position[1] - self.y_bounds[0])
+		x, y, z = np.array(self._drone.get_position())
+		direction = np.array(self._drone.get_direction())
+		if direction == 0:
+			xy_distance = abs(y - self.y_bounds[1])
+		elif direction == 1:
+			xy_distance = abs(x - self.x_bounds[1])
+		elif direction == 2:
+			xy_distance = abs(y - self.y_bounds[0])
+		else:# direction == 3:
+			xy_distance = abs(x - self.x_bounds[0])
 		data.append(xy_distance)
 		if self.include_z:
-			z_distance_up = abs(position[2] - self.z_bounds[0])
-			z_distance_down = abs(position[2] - self.z_bounds[1])
+			z_distance_up = abs(z - self.z_bounds[1])
+			z_distance_down = abs(z - self.z_bounds[0])
 			data.append(z_distance_up)
 			data.append(z_distance_down)
 			

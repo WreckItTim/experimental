@@ -2,51 +2,15 @@ import utils.global_methods as gm # sys.path.append('path/to/parent/repo/')
 import map_data.map_methods as mm
 import numpy as np
 
-# def get_astar_path(start, target, motion, airsim_map, 
-#                    rooftops_version='v1', region='all', astar_version='v1', 
-#                   max_iterations=40_000,):
-
-#     # read map bounds to search for path in
-#     x_bounds, y_bounds, z_bounds = mm.get_bounds(airsim_map, region) # region returns bounds in airsim coords
-#     bounds_min = mm.drone_to_standard(x_bounds[0], y_bounds[0], z_bounds[0], airsim_map)
-#     bounds_max = mm.drone_to_standard(x_bounds[1], y_bounds[1], z_bounds[1], airsim_map)
-#     x_bounds, y_bounds, z_bounds = [bounds_min[0], bounds_max[0]], [bounds_min[1], bounds_max[1]], [bounds_min[2], bounds_max[2]]
-
-#     # read rooftops object used to detect collisions
-#     rooftops = gm.pk_read(f'map_data/rooftops/{rooftops_version}/rooftops_standard_{airsim_map}.p')
-    
-#     # convert AirSim coordinates to standard coordinates
-#     start = mm.drone_to_standard(*start, airsim_map)
-#     target = mm.drone_to_standard(*target, airsim_map)
-    
-#     # make astar object and search 
-#     astar = Astar(rooftops, x_bounds, y_bounds, z_bounds, astar_version)
-#     path, outer_iterations, result = astar.search(np.array(start), np.array(target), motion=motion, max_iterations=max_iterations)
-#     print('astar path result:', result, '. Astar took', outer_iterations,'number of iterations to finish. Increase max_iterations if failed and you can see that a path exists.')
-    
-#     # convert standard coordinates back to stupid AirSim coordinates
-#     for point in path:
-#         point['position'] =  mm.standard_to_drone(*point['position'], airsim_map)
-#     return path, outer_iterations, result
-
-def get_astar_path(start, target, motion, airsim_map, 
-                   rooftops_version='v1', region='all', astar_version='v1', 
-                  max_iterations=40_000,):
-    
-    # read rooftops object used to detect collisions
-    rooftops = gm.pk_read(f'map_data/rooftops/{rooftops_version}/rooftops_standard_{airsim_map}.p')
+def get_astar_path(start, target, motion, datamap, x_bounds, y_bounds, z_bounds,
+                   astar_version='v1', max_iterations=10_000,):
     
     # make astar object and search 
-    astar = Astar(rooftops, x_bounds, y_bounds, z_bounds, astar_version)
+    astar = Astar(datamap, x_bounds, y_bounds, z_bounds, astar_version)
     path, outer_iterations, result = astar.search(np.array(start), np.array(target), motion=motion, max_iterations=max_iterations)
     print('astar path result:', result, '. Astar took', outer_iterations,'number of iterations to finish. Increase max_iterations if failed and you can see that a path exists.')
     
     return path, outer_iterations, result
-
-def load_paths(paths_path):
-    paths_info = pk_read(paths_path)
-    n_total_paths = len(paths_info['paths'])
-    return paths_info, n_total_paths
 
 
 #### ASTAR SHORTEST PATH
@@ -64,7 +28,7 @@ class Node:
     
 class Astar:
     # roof_collision is allowed distance from above rootop before collision
-    def __init__(self, map_name, rooftops, x_bounds, y_bounds, z_bounds, astar_version='v1'):
+    def __init__(self, datamap, x_bounds, y_bounds, z_bounds, astar_version='v1'):
 
         # get magnitudes for astar actions
         if astar_version in ['v1']:
@@ -80,11 +44,13 @@ class Astar:
             self.cost = 1
 
         # set other params
+        self.datamap = datamap
         self.x_bounds = x_bounds.copy()
         self.y_bounds = y_bounds.copy()
         self.z_bounds = z_bounds.copy()
         self.max_horizontal = max(self.magnitudes_horizontal)
         self.max_vertical = max(self.magnitudes_vertical)
+        self.astar_version = astar_version
     
     # get path found
     def return_path(self, current_node):
@@ -102,8 +68,8 @@ class Astar:
         return path
         
     # search for optimal path
-    def search(self, start, end, motion='2d', max_iterations = 10_000):
-        start_node = Node(start, 0, -1, None)
+    def search(self, start, end, motion='2d', max_iterations=10_000):
+        start_node = Node(start, 0, 'Spawn', None)
 
         to_visit = {}
         visited = {}
@@ -113,32 +79,22 @@ class Astar:
     
         def check_child(position, direction, check_visited=True, check_bounds=True, check_collision=True):
             name = f'{position[0]}_{position[1]}_{position[2]}_{direction}'
-            print('checking', position, direction)
             
             # check if visited already
             if check_visited and name in visited:
-                print('ALREADY VISISTED')
                 return 
 
             # unpack positional vars
             x, y, z = position
 
             # check bounds
-            if check_bounds and (x < self.x_bounds[0] or x > self.x_bounds[1] or 
-                    y < self.y_bounds[0] or y > self.y_bounds[1] or 
-                    z < self.z_bounds[0] or z > self.z_bounds[1]):
-                print('OUT OF BOUNDS')
+            if check_bounds and self.datamap.out_of_bounds(x, y, z, self.x_bounds, self.y_bounds, self.z_bounds):
                 return False
 
             # check collision
-            #if check_collision and mm.in_object(x, y, z, map_name, 
-            #        collision_threshold=self.roof_collision, rooftops_version=self.rooftops_version
-            #    ):
-            if check_collision and z <= self.rooftops[x][y] + self.roof_collision:
-                print('COLLISION')
+            if check_collision and self.datamap.in_object(x, y, z, self.roof_collision):
                 return False
 
-            print('VALID')
             return True
             
         while len(to_visit) > 0:
@@ -170,21 +126,21 @@ class Astar:
             # get current state
             current_position = current_node.position
             current_direction = current_node.direction
-            print('current', current_position, current_direction)
+            #print('current', current_position, current_direction)
 
             # child node for rotating right
             proposed_direction = current_direction + 1
             if proposed_direction == 4:
                 proposed_direction = 0
             if check_child(current_position, proposed_direction):
-                children.append(Node(current_position, proposed_direction, 0, current_node))
+                children.append(Node(current_position, proposed_direction, 'RotateRight', current_node))
 
             # child node for rotating left
             proposed_direction = current_direction - 1
             if proposed_direction == -1:
                 proposed_direction = 3
             if check_child(current_position, proposed_direction):
-                children.append(Node(current_position, proposed_direction, 1, current_node))
+                children.append(Node(current_position, proposed_direction, 'RotateLeft', current_node))
 
             # children nodes for moving forward (facing current direction
             proposed_position = current_position.copy()
@@ -203,10 +159,9 @@ class Astar:
 
                 # do we add this child?
                 if magnitude in self.magnitudes_horizontal:
-                    action_idx = 2+self.magnitudes_horizontal.index(magnitude)
                     name = f'{proposed_position[0]}_{proposed_position[1]}_{proposed_position[2]}_{current_direction}'
                     if name not in visited:
-                        children.append(Node(proposed_position, current_direction, action_idx, current_node))
+                        children.append(Node(proposed_position, current_direction, f'Forward{magnitude}', current_node))
 
             # child nodes for moving up or down
             if motion in ['3d']:
@@ -221,12 +176,12 @@ class Astar:
                         # do we add this child?
                         if magnitude in self.magnitudes_vertical:
                             if updown == -1:
-                                action_idx = 2+len(self.magnitudes_horizontal)+self.magnitudes_vertical.index(magnitude)
+                                action = f'Downward{magnitude}'
                             if updown == 1:
-                                action_idx = 2+len(self.magnitudes_horizontal)+len(self.magnitudes_vertical)+self.magnitudes_vertical.index(magnitude)
+                                action = f'Updward{magnitude}'
                             name = f'{proposed_position[0]}_{proposed_position[1]}_{proposed_position[2]}_{current_direction}'
                             if name not in visited:
-                                children.append(Node(proposed_position, current_direction, action_idx, current_node))
+                                children.append(Node(proposed_position, current_direction, action, current_node))
                 
             for child in children:
 
@@ -244,8 +199,13 @@ class Astar:
                         child.h += 1
                     elif child.direction != 3 and x_tol_dis > 0:
                         child.h += 1
-                    if x_tol_dis_abs >= 2:
-                        child.h += int(np.log2(x_tol_dis_abs))
+                    for i in range(len(self.magnitudes_horizontal)-1, -1, -1):
+                        mag = self.magnitudes_horizontal[i]
+                        while x_tol_dis_abs >= mag:
+                            child.h += 1
+                            x_tol_dis_abs -= mag
+                if x_tol_dis_abs > 0:
+                    child.h += 1
                 y_tol_dis = child.position[1] - end[1] 
                 y_tol_dis_abs = np.abs(y_tol_dis) - self.goal_tolerance
                 if y_tol_dis_abs > 0:
@@ -253,12 +213,23 @@ class Astar:
                         child.h += 1
                     elif child.direction != 2 and y_tol_dis > 0:
                         child.h += 1
-                    if y_tol_dis_abs >= 2:
-                        child.h += int(np.log2(y_tol_dis_abs))
+                    for i in range(len(self.magnitudes_horizontal)-1, -1, -1):
+                        mag = self.magnitudes_horizontal[i]
+                        while y_tol_dis_abs >= mag:
+                            child.h += 1
+                            y_tol_dis_abs -= mag
+                if y_tol_dis_abs > 0:
+                    child.h += 1
                 z_tol_dis = child.position[2] - end[2] 
                 z_tol_dis_abs = np.abs(z_tol_dis) - self.goal_tolerance
                 if z_tol_dis_abs > 0:
-                    child.h += int(z_tol_dis_abs/4)
+                    for i in range(len(self.magnitudes_vertical)-1, -1, -1):
+                        mag = self.magnitudes_vertical[i]
+                        while z_tol_dis_abs >= mag:
+                            child.h += 1
+                            z_tol_dis_abs -= mag
+                if z_tol_dis_abs > 0:
+                    child.h += 1
                     
                 child.f = child.g + child.h
 

@@ -10,9 +10,14 @@ import map_data.map_methods as mm
 
 # local imports
 from configuration import Configuration
+initial_locals = locals().copy() # will exclude these parameters from config parameters written to file
 
 # params set from arguments passed in python call
 job_name = None # optional param for tracking outside of this program
+map_name = 'AirSimNH'
+rooftops_version = 'V1'
+region = 'all'
+motion = '2d'
 config_path = 'null' # set with args, file path to configuration.json to load train components and parameters
 model_path = 'null' # set with args, file path to model.zip to load sb3 actor model to evaluate
 output_dir = 'null' # set with args, directory path to folder to write results
@@ -38,6 +43,16 @@ assert output_dir!='null', f'output_dir not passed as arg'
 # setup for run, set system vars and prepare file system
 gm.setup_output_dir(output_dir, overwrite_directory)
 
+datamap = mm.DataMap(map_name, rooftops_version)
+gm.set_global('datamap', datamap)
+x_bounds, y_bounds, z_bounds = datamap.get_bounds(region, motion)
+
+# all variables here will be added to configuration parameters for reading later
+all_local_vars = locals()
+user_local_vars = {k:v for k, v in all_local_vars.items() if (not k.startswith('__') and k not in initial_locals and k not in ['initial_locals','all_local_vars', 'datamap'])}
+config_params = user_local_vars.copy() # will include all of the above parameters to config parameters written to file
+print('running job with params', config_params)
+
 ## read old CONFIGURATION 
 # SET META DATA (anything you want here for notes, just writes to config file as a dict)
 meta = {}
@@ -45,7 +60,8 @@ configuration = Configuration.load(
 	config_path, # read all components in this config file
 	read_modifiers=False, # do not load modifiers used in train configuration - we will make new ones
 	skip_components = [ # do not load these components because we will overwrite them for testing
-		'Spawner', # change how we spawn
+		'Curriculum',
+		'Saver',
 		],
 	change_params={ # change parameters in components to desired value
 		'device':device, # load model onto specificed pytorch device
@@ -56,24 +72,19 @@ configuration.update_meta(meta)
 
 # parameters set from config file
 astar_dir = f'{home_dir}map_data/astar_paths/'
-rooftops_dir = f'{home_dir}map_data/rooftops/'
 observations_dir = f'{home_dir}map_data/observations/'
-airsim_map = configuration.get_parameter('airsim_map')
 motion = configuration.get_parameter('motion')
-rooftops_version = configuration.get_parameter('rooftops_version')
 astar_version = configuration.get_parameter('astar_version')
 region = configuration.get_parameter('region')
 path_splits = configuration.get_parameter('path_splits')
 astar_name = configuration.get_parameter('astar_name')
 configuration.set_parameter('random_seed', random_seed)
-rooftops_path = f'{rooftops_dir}{rooftops_version}/{airsim_map}.p' # match to map or use voxels i
-x_bounds, y_bounds, z_bounds = mm.get_bounds(airsim_map, region, motion)
-astar_paths_file = f'{astar_dir}{astar_version}/{airsim_map}_{motion}_{astar_name}.p'
+astar_paths_file = f'{astar_dir}{astar_version}/{map_name}_{motion}_{astar_name}.p'
 
 ## CONTROLLER -- we will test on config
 from controllers.test import Test
 controller = Test(
-		environment_component = 'Environment', # environment to run test in
+		environment_component = 'EnvironmentVal', # environment to run test in
 		model_component = 'Model', # used to make predictions
 		spawner_component = 'Spawner', # used to make predictions
 		results_directory = output_dir,
@@ -83,23 +94,12 @@ configuration.set_controller(controller)
 
 # **** new components to create for testing, to add to those found in the configuration file
 
-# SPAWNER - spawn drone at first point in each astar path with target of last point
-from spawners.levels import Levels
-Levels(
-	drone_component = 'Drone',
-	levels_path = astar_paths_file,
-	min_level = min_level,
-	max_level = max_level,
-	path_splits = path_splits,
-	split_name = split_name,
-	name = 'Spawner',
-)
 # SAVERS - save observations and/or states at each step
 from modifiers.saver import Saver
 # save Train states and observations
 if save_states:
 	Saver(
-		base_component = 'Environment',
+		base_component = 'EnvironmentVal',
 		parent_method = 'end',
 		track_vars = [
 					#'observations', # uncomment this to write observations to file (can take alot of disk space)
@@ -115,6 +115,8 @@ if save_states:
 
 # CONNECT COMPONENTS
 configuration.connect_all()
+controller._spawner.random_splits[split_name] = False
+controller._spawner.set_active_split(split_name)
 
 # WRITE CONFIGURATION
 configuration.save()

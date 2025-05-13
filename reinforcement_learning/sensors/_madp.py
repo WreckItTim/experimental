@@ -113,7 +113,7 @@ class _Madp(Sensor):
 		# discretize
 		if self.discretize:
 			x, y, z = round(x), round(y), round(z)
-			yaw = mm.yaw_to_idx(yaw)
+			yaw = mm.yaw_to_direction(yaw)
 		if np.isnan(self._x):
 			use_madp = False
 		else:

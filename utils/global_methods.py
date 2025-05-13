@@ -73,7 +73,11 @@ def parse_arguments(arguments, set_global_arguments=True):
 		key = parts[0]
 		value = ':'.join(parts[1:])
 		print(key, value)
-		if value in ['True']:
+		if value[0]=='{':
+			value = parse_arguments(value[1:-1].split(','), set_global_arguments=False)
+		elif value[0]=='[':
+			value = value[1:-1].split(',')
+		elif value in ['True']:
 			value = True
 		elif value in ['False']:
 			value = False

@@ -158,7 +158,7 @@ def _init_wrapper(init_method):
 		# CALL BASE INIT
 		self._dumps = [] # list of variables to keep temporal track of for later memory dumps
 		self._part = part
-		self._add_timers = False # change in base init method to false to not add
+		self._add_timers = True # change in base init method to false to not add
 		self._add_memories = False # change in base init method to false to not add
 		self._set_name = True # change in base init method to false to not add
 		self._add_to_configuration = True # change in base init method to false to not add
@@ -268,10 +268,10 @@ class Component():
 			else:
 				component = self._configuration.get_component(component_name)
 			setattr(self, member_name, component)
-		#if hasattr(self, '_name'):
-		#	gm.speak(f'connected component with name {self._name}')
-		#else:
-		#	gm.speak(f'connected component of type {type(self)}')
+		if hasattr(self, '_name'):
+			gm.speak(f'connected component with name {self._name}')
+		else:
+			gm.speak(f'connected component of type {type(self)}')
 
 	# this will toggle if keep track of vars to save
 	# warning this can be expensive

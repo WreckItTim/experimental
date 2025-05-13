@@ -166,8 +166,8 @@ if sensor_name == 'DepthV1':
 ## forward facing depth camera with reduced image size
 if sensor_name == 'DepthV2':
     image_type = 2
-    camera_height = 36
-    camera_width = 64
+    camera_height = 72
+    camera_width = 128
     array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
@@ -175,7 +175,7 @@ if sensor_name == 'DepthV2':
         airsim_component = 'Map',
         camera_view = '0',
         image_type = image_type,
-        transformers_components = ['Reduce4', 'NormalizeDistance', 'DataType8'],
+        transformers_components = ['NormalizeDistance', 'DataType8'],
         name = sensor_name,
         )
     sensor_info = {
@@ -185,7 +185,7 @@ if sensor_name == 'DepthV2':
         'notes':'forward facing depth',
     }
 
-## downward facing depth camera with reduced image size
+## forward facing depth camera with further reduced image size
 if sensor_name == 'DepthV3':
     image_type = 2
     camera_height = 36
@@ -195,9 +195,9 @@ if sensor_name == 'DepthV3':
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
-        camera_view = '3',
+        camera_view = '0',
         image_type = image_type,
-        transformers_components = ['Reduce4', 'NormalizeDistance', 'DataType8'],
+        transformers_components = ['NormalizeDistance', 'DataType8'],
         name = sensor_name,
         )
     sensor_info = {
