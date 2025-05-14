@@ -10,6 +10,7 @@ shortest_path/*
 !shortest_path/shortest_methods.py
 supervised_learning/*
 !supervised_learning/supervised_methods.py
+!supervised_learning/slim_methods.py
 !supervised_learning/monocular_depth_example.ipynb
 map_data/astar_paths/*
 !map_data/astar_paths/README.txt

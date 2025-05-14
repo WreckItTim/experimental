@@ -207,15 +207,17 @@ if sensor_name == 'DepthV3':
         'notes':'downward facing depth 36x64',
     }
 
-## downward facing depth camera 144x256
+## downward facing depth camera with further reduced image size
 if sensor_name == 'DepthV4':
     image_type = 2
+    camera_height = 18
+    camera_width = 32
     array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
     AirSimCamera(
         airsim_component = 'Map',
-        camera_view = '3', 
+        camera_view = '0', 
         image_type = image_type,
         transformers_components = ['NormalizeDistance', 'DataType8'],
         name = sensor_name,
@@ -224,14 +226,14 @@ if sensor_name == 'DepthV4':
         'obs_type':'array',
         'state_type':'4vec',
         'array_size':array_size,
-        'notes':'downward facing depth 144x256',
+        'notes':'downward facing depth 18x32',
     }
 
-## forward facing depth camera with increased image size
+## downward facing depth camera with further reduced image size
 if sensor_name == 'DepthV5':
     image_type = 2
-    camera_height = 288
-    camera_width = 512
+    camera_height = 9
+    camera_width = 16
     array_size = [1,camera_height,camera_width]
     data_type = np.uint8
     from sensors.airsimcamera import AirSimCamera
@@ -246,29 +248,7 @@ if sensor_name == 'DepthV5':
         'obs_type':'array',
         'state_type':'4vec',
         'array_size':array_size,
-        'notes':'forward facing depth 288x512',
-    }
-
-## forward facing depth camera with greatly increased image size
-if sensor_name == 'DepthV6':
-    image_type = 2
-    camera_height = 576
-    camera_width = 1024
-    array_size = [1,camera_height,camera_width]
-    data_type = np.uint8
-    from sensors.airsimcamera import AirSimCamera
-    AirSimCamera(
-        airsim_component = 'Map',
-        camera_view = '0', 
-        image_type = image_type,
-        transformers_components = ['NormalizeDistance', 'DataType8'],
-        name = sensor_name,
-    )
-    sensor_info = {
-        'obs_type':'array',
-        'state_type':'4vec',
-        'array_size':array_size,
-        'notes':'forward facing depth 576x1024',
+        'notes':'downward facing depth 9x16',
     }
 
 ## forward facing scene camera (RGB)
@@ -505,5 +485,6 @@ configuration.disconnect_all()
 
 # wait for everything to properly disconnect
 time.sleep(20)
+gm.progress2(job_name, f'results {sensor_name} {part_name} collected')
 gm.progress(job_name, 'complete')
 gm.speak('completed')

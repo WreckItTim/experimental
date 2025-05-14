@@ -63,7 +63,7 @@ image_sensors = {
 nPast = 4
 id_name = 'alpha' # when reading in observation data, which ID key words to use
 vector_sensors = {
-    'SenseActions':True,
+    #'SenseActions':True,
     'GoalDistanceX':True,
     'GoalDistanceY':True,
     'SenseDirection':True,
@@ -734,7 +734,7 @@ rm.evaluate_navi({
     'split_name':'val',
 })
     
-rm.evaluate_navi({
+accuracy, length = rm.evaluate_navi({
     'config_path':f'{output_dir}configuration.json',
     'model_path':f'{output_dir}modeling/model_eval.zip',
     'output_dir':f'{output_dir}test_final/',
@@ -745,5 +745,6 @@ rm.evaluate_navi({
 })
 
 gm.print_local_log()
+gm.progress2(job_name, f'results {output_dir} {accuracy:0.2f} acc {length:0.2f} len')
 gm.pk_write(True, complete_path)
 gm.progress(job_name, f'complete')

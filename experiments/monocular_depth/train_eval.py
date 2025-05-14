@@ -56,11 +56,6 @@ if len(sys.argv) > 1:
     arguments = gm.parse_arguments(sys.argv[1:])
     locals().update(arguments)
 
-# update any further parsing of arguments
-# turn rhos string into array
-if isinstance(rhos, str):
-    rhos = [float(rho) for rho in rhos[1:-1].split(',')]
-
 # set directory to write all results to
 run_dir = f'{root_dir}models/monocular_depth/{version}/seed_{random_seed}/'
 os.makedirs(run_dir, exist_ok=True)
@@ -331,4 +326,9 @@ datamap.clear_cache()
 
 gm.pk_write(r2s, f'{run_dir}r2s.p')
 
+if use_slim_cnn:
+    r2_test = r2s['test'][1.0]
+else:
+    r2_test = r2s['test']
+gm.progress2(job_name, f'results {run_dir} {r2_test:0.2f} r2')
 gm.progress(job_name, 'complete')

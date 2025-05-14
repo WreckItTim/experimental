@@ -74,9 +74,9 @@ def parse_arguments(arguments, set_global_arguments=True):
 		value = ':'.join(parts[1:])
 		print(key, value)
 		if value[0]=='{':
-			value = parse_arguments(value[1:-1].split(','), set_global_arguments=False)
+			value = parse_arguments(value[1:-1].split('__'), set_global_arguments=False)
 		elif value[0]=='[':
-			value = value[1:-1].split(',')
+			value = value[1:-1].split('__')
 		elif value in ['True']:
 			value = True
 		elif value in ['False']:
@@ -174,6 +174,15 @@ def progress(name, progress):
 		old_path = f'{progress_dir}{name} {old_progress}'
 		if os.path.exists(old_path):
 			os.remove(old_path)
+	new_path = f'{progress_dir}{name} {progress}'
+	if not os.path.exists(progress_dir):
+		os.makedirs(progress_dir)
+	pk_write('', new_path)
+# does not overwrite previous progress
+def progress2(name, progress):
+	if name is None:
+		return
+	progress_dir = get_global('local_dir') + 'progress/'
 	new_path = f'{progress_dir}{name} {progress}'
 	if not os.path.exists(progress_dir):
 		os.makedirs(progress_dir)

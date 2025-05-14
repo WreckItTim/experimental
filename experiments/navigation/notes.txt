@@ -1,2 +1,0 @@
-scale=2 sensor=DepthV1 ram=30gb vram=1gb
-scale=2 sensor=DepthV2 ram=2gb vram=0.2gb ??
